@@ -37,10 +37,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:fontFamily="@font/montserrat_subrayada"
-        android:text="@string/i_am_a"
+        android:fontFamily="@font/abeezee"
+        android:text="I speak"
         android:textColor="@android:color/white"
-        android:textSize="18sp"
+        android:textSize="22sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView2" />
@@ -63,7 +63,7 @@
             android:layout_marginEnd="16dp"
             android:layout_weight="1"
             android:background="@drawable/swoosh_toggle"
-            android:fontFamily="@font/montserrat_subrayada"
+            android:fontFamily="@font/abeezee"
             android:text="@string/beginner"
             android:textColor="@android:color/white"
             android:textOff="@string/beginner" />
@@ -74,22 +74,22 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@drawable/swoosh_toggle"
-            android:fontFamily="@font/montserrat_subrayada"
-            android:text="@string/baller"
+            android:fontFamily="@font/abeezee"
+            android:text="a professional"
             android:textColor="@android:color/white"
-            android:textOff="@string/baller"
-            android:textOn="@string/baller" />
+            android:textOff="a professional"
+            android:textOn="a professional" />
     </LinearLayout>
 
     <Button
-        android:id="@+id/button"
+        android:id="@+id/nextApplyButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:background="@drawable/swoosh_button"
-        android:fontFamily="@font/montserrat_subrayada"
+        android:fontFamily="@font/abeezee"
         android:text="@string/button"
         android:textColor="@android:color/white"
         app:layout_constraintBottom_toBottomOf="@+id/imageView4"

@@ -15,4 +15,19 @@
     <string name="i_am_a">I am a:</string>
     <string name="beginner">BEGINNER</string>
     <string name="baller">BALLER</string>
+    <string name="on_call">ON CALL</string>
+    <string name="language_professionals">LANGUAGE PROFESSIONALS</string>
+    <string name="find_a_live_language_translator_or_interpreter_available_immediately">Find a live language translator or interpreter available immediately.</string>
+    <string name="language_services">LANGUAGE SERVICES</string>
+    <string name="live_translators">live translators</string>
+    <string name="get_a_real_live_human_translator_or_interpreter_available_immediately">get a real, live, human translator or interpreter available immediately</string>
+    <string name="i_need">I need...</string>
+    <string name="an_interpreter">An Interpreter</string>
+    <string name="face_to_face_phone_conversation_audio">ex: Face to face, phone conversation, audio</string>
+    <string name="a_translator">A Translator</string>
+    <string name="text_signs_menus_documents">ex: Text, signs, menus, documents</string>
+    <string name="next">Next</string>
+    <string name="i_am_biligual_and_want_easy_cash">I AM BILIGUAL and want easy cash</string>
+    <string name="looking_for_work">Looking for work?</string>
+    <string name="professional">professional</string>
 </resources>

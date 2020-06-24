@@ -38,19 +38,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:text="@string/desired_league"
+        android:fontFamily="@font/abeezee"
+        android:text="@string/i_need"
         android:textColor="@android:color/white"
-        android:textSize="18sp"
+        android:textSize="22sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView2" />
 
     <LinearLayout
+        android:id="@+id/linearLayout"
         android:layout_width="335dp"
-        android:layout_height="170dp"
+        android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
@@ -58,53 +60,111 @@
         app:layout_constraintTop_toBottomOf="@+id/textView4">
 
         <ToggleButton
-            android:id="@+id/toggleButton"
+            android:id="@+id/interpreterButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/swoosh_toggle"
-            android:fontFamily="@font/montserrat_subrayada"
-            android:text="@string/womens"
+            android:fontFamily="@font/abeezee"
+            android:onClick="onInterpreterClicked"
+            android:text="@string/an_interpreter"
             android:textColor="@android:color/white"
-            android:textOff="@string/womens"
-            android:textOn="@string/womens" />
+            android:textOff="@string/an_interpreter"
+            android:textOn="@string/an_interpreter"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/textView7"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/abeezee"
+            android:text="@string/face_to_face_phone_conversation_audio"
+            android:textAlignment="center"
+            android:textColor="@android:color/white"
+            android:textSize="14sp" />
 
         <ToggleButton
-            android:id="@+id/toggleButton2"
+            android:id="@+id/translatorButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
             android:background="@drawable/swoosh_toggle"
-            android:fontFamily="@font/montserrat_subrayada"
-            android:text="@string/mens"
+            android:fontFamily="@font/abeezee"
+            android:onClick="onTranslatorClicked"
+            android:text="@string/a_translator"
             android:textColor="@android:color/white"
-            android:textOff="@string/mens"
-            android:textOn="@string/mens" />
+            android:textOff="@string/a_translator"
+            android:textOn="@string/a_translator"
+            android:textSize="18sp" />
 
-        <ToggleButton
-            android:id="@+id/toggleButton3"
+        <TextView
+            android:id="@+id/textView8"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:fontFamily="@font/abeezee"
+            android:text="@string/text_signs_menus_documents"
+            android:textAlignment="center"
+            android:textColor="@android:color/white" />
+
+        <ToggleButton
+            android:id="@+id/bothButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16sp"
             android:background="@drawable/swoosh_toggle"
-            android:fontFamily="@font/montserrat_subrayada"
-            android:text="@string/co_ed"
+            android:fontFamily="@font/abeezee"
+            android:onClick="onBothClicked"
+            android:text="Both!"
             android:textColor="@android:color/white"
-            android:textOff="@string/co_ed"
-            android:textOn="@string/co_ed" />
+            android:textOff="Both!"
+            android:textOn="Both!"
+            android:textSize="18sp" />
+
     </LinearLayout>
 
     <Button
-        android:id="@+id/button2"
+        android:id="@+id/nextTOrIButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="40dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/swoosh_button"
+        android:fontFamily="@font/abeezee"
+        android:onClick="leagueNextClicked"
+        android:text="@string/next"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/linearLayout" />
+
+    <Button
+        android:id="@+id/vendorApplyButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:background="@drawable/swoosh_button"
-        android:onClick="leagueNextClicked"
-        android:text="Next"
+        android:fontFamily="@font/abeezee"
+        android:onClick="applyVendorClicked"
+        android:text="@string/i_am_biligual_and_want_easy_cash"
         android:textColor="@android:color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@+id/imageView3"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/textView6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:fontFamily="@font/abeezee"
+        android:text="@string/looking_for_work"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toTopOf="@+id/vendorApplyButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 

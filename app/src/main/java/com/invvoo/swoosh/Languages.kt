@@ -3,9 +3,12 @@ package com.invvoo.swoosh
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 
-class SkillActivity : BaseActivity() {
+class Languages : BaseActivity() {
+var language = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_skill)
+        setContentView(R.layout.activity_languages)
+        language = intent.getStringExtra(EXTRA_LANGUAGE).toString()
+        println(language)
     }
 }

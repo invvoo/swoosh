@@ -10,6 +10,7 @@
         android:id="@+id/imageView"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:contentDescription="@string/background_image"
         android:scaleType="centerCrop"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -17,8 +18,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.0"
-        app:srcCompat="@drawable/welcomescreenbg"
-        android:contentDescription="@string/background_image" />
+        app:srcCompat="@drawable/welcomescreenbg" />
 
     <ImageView
         android:id="@+id/imageView2"
@@ -34,11 +34,11 @@
 
     <TextView
         android:id="@+id/textView"
-        android:layout_width="207dp"
-        android:layout_height="38dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginTop="80dp"
-        android:fontFamily="@font/montserrat_subrayada"
-        android:text="@string/go_all_in"
+        android:fontFamily="@font/abeezee"
+        android:text="@string/on_call"
         android:textColor="#FFFFFF"
         android:textSize="40sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -47,10 +47,11 @@
 
     <TextView
         android:id="@+id/textView2"
-        android:layout_width="255dp"
-        android:layout_height="30dp"
-        android:fontFamily="@font/montserrat_subrayada"
-        android:text="@string/on_going_all_out"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/abeezee"
+        android:text="@string/live_translators"
+        android:textAlignment="center"
         android:textColor="@android:color/white"
         android:textSize="24sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -59,14 +60,15 @@
 
     <TextView
         android:id="@+id/textView3"
-        android:layout_width="245dp"
-        android:layout_height="48dp"
+        android:layout_width="275dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:fontFamily="@font/montserrat_subrayada"
+        android:fontFamily="@font/abeezee"
         android:singleLine="false"
-        android:text="@string/find_a_team_in_your_city_and_dominate_the_league"
+        android:text="@string/get_a_real_live_human_translator_or_interpreter_available_immediately"
         android:textAlignment="center"
         android:textColor="@android:color/white"
+        android:textSize="22sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView2" />
@@ -79,7 +81,7 @@
         android:layout_marginEnd="10dp"
         android:layout_marginBottom="10dp"
         android:background="@drawable/swoosh_button"
-        android:fontFamily="@font/montserrat_subrayada"
+        android:fontFamily="@font/abeezee"
         android:text="@string/get_started"
         android:textColor="@android:color/white"
         app:layout_constraintBottom_toBottomOf="@+id/imageView"
