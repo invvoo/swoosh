@@ -30,4 +30,10 @@
     <string name="i_am_biligual_and_want_easy_cash">I AM BILIGUAL and want easy cash</string>
     <string name="looking_for_work">Looking for work?</string>
     <string name="professional">professional</string>
+    <string name="textview">TextView</string>
+    <string name="searchTranslatorText">Looking for a translator near you...</string>
+    <string name="english">english</string>
+    <string name="spanish">Spanish</string>
+    <string name="to">TO</string>
+    <string name="text">text</string>
 </resources>

@@ -1,6 +1,5 @@
-package com.invvoo.swoosh
+package com.invvoo.swoosh.Controller
 
-import android.nfc.Tag
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -11,7 +10,6 @@ open class BaseActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "${javaClass.simpleName} OnCreate")
-
         super.onCreate(savedInstanceState)
 
     }

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".LeagueActivity">
+    tools:context="com.invvoo.swoosh.Controller.ServiceActivity">
 
     <ImageView
         android:id="@+id/imageView3"
@@ -49,11 +49,11 @@
 
     <LinearLayout
         android:id="@+id/linearLayout"
-        android:layout_width="335dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="50dp"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="50dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -77,7 +77,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/abeezee"
-            android:text="@string/face_to_face_phone_conversation_audio"
+            android:text="ex: Sound clip, phone call, recording"
             android:textAlignment="center"
             android:textColor="@android:color/white"
             android:textSize="14sp" />
@@ -119,18 +119,27 @@
             android:textOn="Both!"
             android:textSize="18sp" />
 
+        <TextView
+            android:id="@+id/textView9"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/abeezee"
+            android:text="Video call a translator."
+            android:textAlignment="center"
+            android:textColor="@android:color/white" />
+
     </LinearLayout>
 
     <Button
-        android:id="@+id/nextTOrIButton"
+        android:id="@+id/serviceNextBtn"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="40dp"
+        android:layout_marginTop="36dp"
         android:layout_marginEnd="16dp"
         android:background="@drawable/swoosh_button"
         android:fontFamily="@font/abeezee"
-        android:onClick="leagueNextClicked"
+        android:onClick="serviceNextClicked"
         android:text="@string/next"
         android:textColor="@android:color/white"
         android:textSize="16sp"
@@ -141,8 +150,8 @@
 
     <Button
         android:id="@+id/vendorApplyButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="265dp"
+        android:layout_height="0dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
@@ -151,6 +160,7 @@
         android:onClick="applyVendorClicked"
         android:text="@string/i_am_biligual_and_want_easy_cash"
         android:textColor="@android:color/white"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="@+id/imageView3"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -159,11 +169,11 @@
         android:id="@+id/textView6"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:fontFamily="@font/abeezee"
-        android:text="@string/looking_for_work"
+        android:text="looking for work as a translator?"
         android:textColor="@android:color/white"
-        android:textSize="18sp"
+        android:textSize="12sp"
         app:layout_constraintBottom_toTopOf="@+id/vendorApplyButton"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
