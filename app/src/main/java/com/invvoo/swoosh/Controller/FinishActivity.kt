@@ -1,11 +1,11 @@
 package com.invvoo.swoosh.Controller
 
+import android.annotation.SuppressLint
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import com.invvoo.swoosh.Model.Servicer
 import com.invvoo.swoosh.R
-import com.invvoo.swoosh.Utilities.EXTRA_FROMLANGUAGE
-import com.invvoo.swoosh.Utilities.EXTRA_SERVICE
-import com.invvoo.swoosh.Utilities.EXTRA_TOLANGUAGE
+import com.invvoo.swoosh.Utilities.EXTRA_SERVICER
 import kotlinx.android.synthetic.main.activity_finish.*
 
 class FinishActivity : AppCompatActivity() {
@@ -14,12 +14,12 @@ class FinishActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_finish)
 
-        val fromLanguage = intent.getStringExtra(EXTRA_TOLANGUAGE)
-        val toLanguage = intent.getStringExtra(EXTRA_FROMLANGUAGE)
-        val selectedService = intent.getStringExtra(EXTRA_SERVICE)
+        val servicer = intent.getParcelableExtra<Servicer>(EXTRA_SERVICER)
 
 
-        searchServicesText.text = "Looking for a $fromLanguage to $toLanguage $selectedService available now..."
+        if (servicer != null) {
+            searchServicesText.text = "Looking for a ${servicer.fromLanguage} to ${servicer.toLanguage} ${servicer.service} available now..."
+        }
 
     }
 }

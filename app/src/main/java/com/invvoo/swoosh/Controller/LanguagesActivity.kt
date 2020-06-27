@@ -4,59 +4,66 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import com.invvoo.swoosh.Model.Servicer
 import com.invvoo.swoosh.R
-import com.invvoo.swoosh.Utilities.EXTRA_FROMLANGUAGE
-import com.invvoo.swoosh.Utilities.EXTRA_SERVICE
-import com.invvoo.swoosh.Utilities.EXTRA_TOLANGUAGE
+import com.invvoo.swoosh.Utilities.EXTRA_SERVICER
 
 import kotlinx.android.synthetic.main.activity_languages.*
 
 class LanguagesActivity : BaseActivity() {
 
-       var toLanguage = ""
-    var fromLanguage = ""
+    lateinit var servicer : Servicer
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState?.putParcelable(EXTRA_SERVICER, servicer)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_languages)
+        servicer = intent.getParcelableExtra(EXTRA_SERVICER)!!
 
-        val selectedService = intent.getStringExtra(EXTRA_SERVICE)
-        iNeedAText.text = "Look for a \n $selectedService \n FROM"
+        iNeedAText.text = "${servicer.service} \n for"
 
             }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        if (savedInstanceState != null) {
+            servicer = savedInstanceState.getParcelable(EXTRA_SERVICER)!!
+        }
+    }
 
         fun onFromSpanishClick(view: View) {
             fromEnglishBtn.isChecked = false
             toSpanishButton.isChecked = false
-            fromLanguage = "English"
+            servicer.fromLanguage = "Spanish"
         }
 
         fun onFromEnglishClick(view: View) {
             fromSpanishBtn.isChecked = false
             toEnglishButton.isChecked = false
-            fromLanguage = "Spanish"
+            servicer.fromLanguage = "English"
         }
 
         fun onToEnglishClick(view: View) {
             toSpanishButton.isChecked = false
             fromEnglishBtn.isChecked = false
-            toLanguage = "Spanish"
+            servicer.toLanguage = "English"
 
         }
 
         fun onToSpanishClick(view: View) {
             toEnglishButton.isChecked = false
             fromSpanishBtn.isChecked = false
-            toLanguage = "English"
+            servicer.toLanguage = "Spanish"
         }
 
         fun onLanguageBtnClicked(view: View) {
-            if (toLanguage != "") {
+            if (servicer.toLanguage != "" && servicer.fromLanguage != ""){
                 val finishActivity = Intent(this, FinishActivity::class.java)
-                val selectedService = intent.getStringExtra(EXTRA_SERVICE)
-                finishActivity.putExtra(EXTRA_TOLANGUAGE, toLanguage)
-                finishActivity.putExtra(EXTRA_FROMLANGUAGE, fromLanguage)
-                finishActivity.putExtra(EXTRA_SERVICE, selectedService)
+                finishActivity.putExtra(EXTRA_SERVICER, servicer)
                 startActivity(finishActivity)
             } else {
                 Toast.makeText(this, "Please make all selections.", Toast.LENGTH_SHORT).show()

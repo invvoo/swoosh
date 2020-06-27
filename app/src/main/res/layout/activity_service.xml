@@ -20,49 +20,36 @@
         app:layout_constraintVertical_bias="0.0"
         app:srcCompat="@drawable/desiredleaguebg" />
 
-    <ImageView
-        android:id="@+id/imageView2"
-        android:layout_width="88dp"
-        android:layout_height="29dp"
-        android:layout_marginTop="24dp"
-        android:scaleType="fitCenter"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/imageView3"
-        app:srcCompat="@drawable/swooshlogo"
-        android:contentDescription="@string/logo" />
-
     <TextView
         android:id="@+id/textView4"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="8dp"
         android:fontFamily="@font/abeezee"
         android:text="@string/i_need"
         android:textColor="@android:color/white"
-        android:textSize="22sp"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_bias="0.504"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/imageView2" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
         android:id="@+id/linearLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="254dp"
+        android:layout_height="197dp"
         android:layout_marginStart="50dp"
-        android:layout_marginTop="16dp"
         android:layout_marginEnd="50dp"
         android:orientation="vertical"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.491"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView4">
 
         <ToggleButton
             android:id="@+id/interpreterButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:background="@drawable/swoosh_toggle"
             android:fontFamily="@font/abeezee"
             android:onClick="onInterpreterClicked"
@@ -70,7 +57,7 @@
             android:textColor="@android:color/white"
             android:textOff="@string/an_interpreter"
             android:textOn="@string/an_interpreter"
-            android:textSize="18sp" />
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/textView7"
@@ -80,12 +67,12 @@
             android:text="ex: Sound clip, phone call, recording"
             android:textAlignment="center"
             android:textColor="@android:color/white"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
 
         <ToggleButton
             android:id="@+id/translatorButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/swoosh_toggle"
             android:fontFamily="@font/abeezee"
@@ -94,7 +81,7 @@
             android:textColor="@android:color/white"
             android:textOff="@string/a_translator"
             android:textOn="@string/a_translator"
-            android:textSize="18sp" />
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/textView8"
@@ -103,12 +90,13 @@
             android:fontFamily="@font/abeezee"
             android:text="@string/text_signs_menus_documents"
             android:textAlignment="center"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            android:textSize="12sp" />
 
         <ToggleButton
             android:id="@+id/bothButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:layout_marginTop="16sp"
             android:background="@drawable/swoosh_toggle"
             android:fontFamily="@font/abeezee"
@@ -117,7 +105,7 @@
             android:textColor="@android:color/white"
             android:textOff="Both!"
             android:textOn="Both!"
-            android:textSize="18sp" />
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/textView9"
@@ -126,23 +114,24 @@
             android:fontFamily="@font/abeezee"
             android:text="Video call a translator."
             android:textAlignment="center"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white"
+            android:textSize="12sp" />
 
     </LinearLayout>
 
     <Button
         android:id="@+id/serviceNextBtn"
         android:layout_width="0dp"
-        android:layout_height="48dp"
+        android:layout_height="40dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="36dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
         android:background="@drawable/swoosh_button"
         android:fontFamily="@font/abeezee"
         android:onClick="serviceNextClicked"
         android:text="@string/next"
         android:textColor="@android:color/white"
-        android:textSize="16sp"
+        android:textSize="12sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
@@ -154,7 +143,7 @@
         android:layout_height="0dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/swoosh_button"
         android:fontFamily="@font/abeezee"
         android:onClick="applyVendorClicked"
@@ -169,13 +158,26 @@
         android:id="@+id/textView6"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
         android:fontFamily="@font/abeezee"
         android:text="looking for work as a translator?"
         android:textColor="@android:color/white"
         android:textSize="12sp"
         app:layout_constraintBottom_toTopOf="@+id/vendorApplyButton"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/serviceNextBtn"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <ImageView
+        android:id="@+id/imageView7"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        app:layout_constraintBottom_toTopOf="@+id/textView6"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/serviceNextBtn"
+        app:layout_constraintVertical_bias="1.0"
+        app:srcCompat="@drawable/logo2" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
