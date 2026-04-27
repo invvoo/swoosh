@@ -4,7 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { signToken } from '@/lib/tokens'
 import { translateDocument } from '@/lib/ai/translate'
 import { extractWordCount } from '@/lib/pdf/word-counter'
-import { resend, FROM_EMAIL } from '@/lib/email/client'
+import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AiDraftReadyEmail } from '@/lib/email/templates/ai-draft-ready'
 import { JobConfirmedEmail } from '@/lib/email/templates/job-confirmed'
 import { render as renderAsync } from '@react-email/components'
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
           amount,
         }))
 
-        const { data: emailData, error: emailError } = await resend.emails.send({
+        const { data: emailData, error: emailError } = await getResend().emails.send({
           from: FROM_EMAIL,
           to: client.email,
           subject: `Booking Confirmed — ${invoiceNumber}`,
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
             targetLang: job.target_lang!,
             wordCount: job.word_count ?? 0,
           }))
-          await resend.emails.send({ from: FROM_EMAIL, to: notifyEmail, subject: `AI Draft Ready — ${invoiceNumber}`, html })
+          await getResend().emails.send({ from: FROM_EMAIL, to: notifyEmail, subject: `AI Draft Ready — ${invoiceNumber}`, html })
         }
 
       } catch (aiError) {

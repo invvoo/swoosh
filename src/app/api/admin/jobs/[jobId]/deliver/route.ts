@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signToken } from '@/lib/tokens'
-import { resend, FROM_EMAIL } from '@/lib/email/client'
+import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { DeliveryReadyEmail } from '@/lib/email/templates/delivery-ready'
 import { render as renderAsync } from '@react-email/components'
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       invoiceNumber: job.invoice_number ?? '',
     }))
 
-    const { data: emailData, error: emailError } = await resend.emails.send({
+    const { data: emailData, error: emailError } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: client.email,
       subject: `Your Translation is Ready — ${job.invoice_number}`,

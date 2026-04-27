@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signToken } from '@/lib/tokens'
-import { resend, FROM_EMAIL } from '@/lib/email/client'
+import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { QuoteReadyEmail } from '@/lib/email/templates/quote-ready'
 import { render as renderAsync } from '@react-email/components'
 import { addDays, format } from 'date-fns'
@@ -75,7 +75,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
     expiresAt: format(expiresAt, 'MMMM d, yyyy'),
   }))
 
-  const { data: emailData, error: emailError } = await resend.emails.send({
+  const { data: emailData, error: emailError } = await getResend().emails.send({
     from: FROM_EMAIL,
     to: client.email,
     subject: `Your Quote from LA Translation — $${amount.toFixed(2)}`,
