@@ -1,0 +1,230 @@
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { CheckCircle, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+
+const SERVICE_TYPES = [
+  { value: 'notary', label: 'Notarization Only', description: 'Official notarization of your document' },
+  { value: 'apostille', label: 'Apostille Only', description: 'Apostille certification for international use' },
+  { value: 'both', label: 'Notarization + Apostille', description: 'Full certification package' },
+]
+
+const DELIVERY_METHODS = [
+  { value: 'in_person', label: 'In-Person Pickup', description: '2975 Wilshire Blvd #205, Los Angeles, CA 90010' },
+  { value: 'mail', label: 'Mail Delivery', description: 'Documents mailed to your address' },
+]
+
+const DOCUMENT_TYPES = [
+  'Birth Certificate', 'Death Certificate', 'Marriage Certificate', 'Divorce Decree',
+  'Power of Attorney', 'Affidavit', 'Immigration Document (USCIS)', 'Diploma / Transcript',
+  'Business Document', 'Court Document', 'Medical Record', 'Financial Document', 'Other',
+]
+
+export default function NotaryPage() {
+  const [form, setForm] = useState({
+    clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
+    notaryServiceType: 'notary', deliveryMethod: 'in_person',
+    documentType: '', documentCount: '1', notes: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function set(key: string) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    const res = await fetch('/api/jobs/notary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientName: form.clientName,
+        clientEmail: form.clientEmail,
+        clientPhone: form.clientPhone || undefined,
+        clientCompany: form.clientCompany || undefined,
+        notaryServiceType: form.notaryServiceType,
+        deliveryMethod: form.deliveryMethod,
+        notes: [
+          form.documentType ? `Document type: ${form.documentType}` : '',
+          form.documentCount !== '1' ? `Number of documents: ${form.documentCount}` : '',
+          form.notes,
+        ].filter(Boolean).join('\n') || undefined,
+      }),
+    })
+
+    if (res.ok) {
+      setSuccess(true)
+    } else {
+      setError('Something went wrong. Please call us at (213) 385-7781.')
+      setSubmitting(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
+          <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            Our team will review your notary request and send you a quote by email.
+            We typically respond within 2 business hours.
+          </p>
+          <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 mb-6 text-left space-y-1">
+            <p className="font-medium">Standard Pricing:</p>
+            <p>Apostille: $150 first document · $50 each additional</p>
+            <p>Death Certificate (Norwalk State Registrar): $199.95</p>
+          </div>
+          <p className="text-sm text-gray-500">
+            Questions? Call <a href="tel:2133857781" className="text-blue-600 font-medium">(213) 385-7781</a>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white border-b border-gray-200 px-6 py-4">
+        <Link href="/" className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</Link>
+      </nav>
+
+      <div className="max-w-2xl mx-auto py-12 px-4">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-[#1a1a2e]">Notary &amp; Apostille Services</h1>
+          <p className="text-gray-500 mt-2">Certified document notarization and apostille for international use</p>
+        </div>
+
+        {/* Pricing callout */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-sm text-blue-800">
+          <p className="font-semibold mb-1">Standard Apostille Pricing</p>
+          <ul className="space-y-0.5 text-blue-700">
+            <li>Apostille certification: <strong>$150</strong> first document · <strong>$50</strong> each additional (same submission)</li>
+            <li>Death certificate (Norwalk State Registrar): <strong>$199.95</strong></li>
+            <li>Notarization-only pricing provided in your quote</li>
+          </ul>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-8 space-y-6">
+          {/* Contact */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-4">Your Information</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Full Name *</Label>
+                <Input required value={form.clientName} onChange={set('clientName')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email *</Label>
+                <Input type="email" required value={form.clientEmail} onChange={set('clientEmail')} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input value={form.clientPhone} onChange={set('clientPhone')} />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Organization / Company</Label>
+                <Input value={form.clientCompany} onChange={set('clientCompany')} />
+              </div>
+            </div>
+          </div>
+
+          {/* Service Type */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-4">Service Needed *</h2>
+            <div className="space-y-2">
+              {SERVICE_TYPES.map((st) => (
+                <label key={st.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.notaryServiceType === st.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input type="radio" name="notaryServiceType" value={st.value}
+                    checked={form.notaryServiceType === st.value}
+                    onChange={set('notaryServiceType')}
+                    className="mt-0.5 accent-[#1a1a2e]" />
+                  <div>
+                    <p className="font-medium text-sm">{st.label}</p>
+                    <p className="text-xs text-gray-400">{st.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Document Details */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-4">Document Details</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Document Type</Label>
+                <select className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
+                  value={form.documentType} onChange={set('documentType')}>
+                  <option value="">Select…</option>
+                  {DOCUMENT_TYPES.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Number of Documents</Label>
+                <Input type="number" min="1" value={form.documentCount} onChange={set('documentCount')} />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-4">Delivery Method *</h2>
+            <div className="space-y-2">
+              {DELIVERY_METHODS.map((dm) => (
+                <label key={dm.value}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.deliveryMethod === dm.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input type="radio" name="deliveryMethod" value={dm.value}
+                    checked={form.deliveryMethod === dm.value}
+                    onChange={set('deliveryMethod')}
+                    className="mt-0.5 accent-[#1a1a2e]" />
+                  <div>
+                    <p className="font-medium text-sm">{dm.label}</p>
+                    <p className="text-xs text-gray-400">{dm.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label>Additional Notes</Label>
+            <Textarea rows={3} value={form.notes} onChange={set('notes')}
+              placeholder="Purpose of apostille (country of destination), urgency, any special instructions…" />
+          </div>
+
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
+
+          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+            {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : 'Submit Notary Request'}
+          </Button>
+
+          <p className="text-xs text-center text-gray-400">
+            Our team will send you a quote before any work begins. USCIS-accepted certified translations available.
+          </p>
+        </form>
+
+        {/* Info box */}
+        <div className="mt-6 bg-white rounded-xl border p-6 text-sm text-gray-600 space-y-3">
+          <p className="font-semibold text-gray-900">Accepted By</p>
+          <p>Our certified translations and apostilles are accepted by USCIS, courts, government agencies, and international bodies worldwide.</p>
+          <p>All translations are notarized, sealed, and stamped — and kept on file for 3 years.</p>
+          <p>Questions about Legal Document Assistant services? Call <a href="tel:2133856228" className="text-blue-600 font-medium">(213) 385-6228</a></p>
+        </div>
+      </div>
+    </div>
+  )
+}
