@@ -75,6 +75,32 @@ export async function resolveTranslationRate(
 }
 
 /**
+ * Resolve the applicable court certification minimum for a given language pair.
+ * Japanese and Hebrew use a premium minimum; all other languages use the standard court minimum.
+ * settingsMap should include translation_minimum_court, translation_minimum_court_premium,
+ * translation_minimum_certified, translation_minimum_standard, and translation_court_premium_langs.
+ */
+export function resolveCertMinimum(
+  certificationTpe: string,
+  sourceLang: string,
+  targetLang: string,
+  settingsMap: Record<string, number | string>,
+): number {
+  if (certificationTpe === 'general') return Number(settingsMap['translation_minimum_certified'] ?? 250)
+  if (certificationTpe !== 'court') return Number(settingsMap['translation_minimum_standard'] ?? 95)
+
+  const premiumLangsRaw = String(settingsMap['translation_court_premium_langs'] ?? 'Japanese,Hebrew')
+  const premiumLangs = premiumLangsRaw.split(',').map((l) => l.trim().toLowerCase())
+  const isPremium =
+    premiumLangs.includes(sourceLang.toLowerCase()) ||
+    premiumLangs.includes(targetLang.toLowerCase())
+
+  return isPremium
+    ? Number(settingsMap['translation_minimum_court_premium'] ?? 750)
+    : Number(settingsMap['translation_minimum_court'] ?? 550)
+}
+
+/**
  * Calculate an interpretation quote.
  * locationType: 'in_person' | 'phone' | 'video'
  */

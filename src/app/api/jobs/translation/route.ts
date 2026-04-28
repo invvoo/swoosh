@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { extractWordCount } from '@/lib/pdf/word-counter'
 import { calculateQuote } from '@/lib/quote/calculator'
-import { resolveTranslationRate } from '@/lib/quote/pricing'
+import { resolveTranslationRate, resolveCertMinimum } from '@/lib/quote/pricing'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AutoQuoteEstimateEmail } from '@/lib/email/templates/auto-quote-estimate'
 import { render } from '@react-email/components'
@@ -13,11 +13,7 @@ const CERT_SPECIALTY: Record<string, string> = {
   general: 'Certified (USCIS)',
   court: 'Court Certified',
 }
-const CERT_MINIMUM_KEY: Record<string, string> = {
-  none: 'translation_minimum_standard',
-  general: 'translation_minimum_certified',
-  court: 'translation_minimum_court',
-}
+
 const CERT_LABEL: Record<string, string> = {
   none: 'No certification',
   general: 'General / Company',
@@ -79,6 +75,8 @@ export async function POST(req: NextRequest) {
       'translation_minimum_standard',
       'translation_minimum_certified',
       'translation_minimum_court',
+      'translation_minimum_court_premium',
+      'translation_court_premium_langs',
     ]),
   ])
 
@@ -92,8 +90,7 @@ export async function POST(req: NextRequest) {
     ?? (specialtyRow.name === 'Certified (USCIS)' ? 'general'
       : specialtyRow.name === 'Court Certified' ? 'court'
         : 'none')
-  const minimumKey = CERT_MINIMUM_KEY[certForMinimum] ?? 'translation_minimum_standard'
-  const minimum = settingsMap[minimumKey] ?? 95
+  const minimum = resolveCertMinimum(certForMinimum, effectiveSourceLang, targetLang, settingsMap)
 
   let quoteAmount: number | null = null
   if (pricing.perWordRate !== null && specialtyRow.multiplier !== null) {

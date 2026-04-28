@@ -26,7 +26,8 @@ const CERT_SPECIALTY: Record<CertificationType, string> = {
 export default function TranslationRequestPage() {
   const [langPairs, setLangPairs] = useState<{ id: string; source_lang: string; target_lang: string; per_word_rate: number }[]>([])
   const [specialties, setSpecialties] = useState<{ name: string; multiplier: number }[]>([])
-  const [minimums, setMinimums] = useState({ standard: 95, certified: 250, court: 350 })
+  const [minimums, setMinimums] = useState({ standard: 95, certified: 250, court: 550, courtPremium: 750 })
+  const [courtPremiumLangs, setCourtPremiumLangs] = useState<string[]>(['Japanese', 'Hebrew'])
 
   // File + detection state
   const [file, setFile] = useState<File | null>(null)
@@ -56,15 +57,22 @@ export default function TranslationRequestPage() {
     supabase.from('specialty_multipliers').select('name, multiplier').eq('is_active', true)
       .then(({ data }) => setSpecialties(data ?? []))
     supabase.from('system_settings').select('key, value')
-      .in('key', ['translation_minimum_standard', 'translation_minimum_certified', 'translation_minimum_court'])
+      .in('key', [
+        'translation_minimum_standard', 'translation_minimum_certified',
+        'translation_minimum_court', 'translation_minimum_court_premium',
+        'translation_court_premium_langs',
+      ])
       .then(({ data }) => {
         if (!data) return
-        const map = Object.fromEntries(data.map((s) => [s.key, Number(s.value)]))
+        const map = Object.fromEntries(data.map((s) => [s.key, s.value]))
         setMinimums({
-          standard: map['translation_minimum_standard'] ?? 95,
-          certified: map['translation_minimum_certified'] ?? 250,
-          court: map['translation_minimum_court'] ?? 350,
+          standard: Number(map['translation_minimum_standard'] ?? 95),
+          certified: Number(map['translation_minimum_certified'] ?? 250),
+          court: Number(map['translation_minimum_court'] ?? 550),
+          courtPremium: Number(map['translation_minimum_court_premium'] ?? 750),
         })
+        const premiumRaw = map['translation_court_premium_langs'] ?? 'Japanese,Hebrew'
+        setCourtPremiumLangs(premiumRaw.split(',').map((l: string) => l.trim()))
       })
   }, [])
 
@@ -127,11 +135,17 @@ export default function TranslationRequestPage() {
     const specialty = specialties.find((s) => s.name === CERT_SPECIALTY[form.certificationTpe])
     if (!specialty) return null
 
-    const minimum = form.certificationTpe === 'court'
-      ? minimums.court
-      : form.certificationTpe === 'general'
-        ? minimums.certified
-        : minimums.standard
+    const isPremiumCourt =
+      form.certificationTpe === 'court' &&
+      courtPremiumLangs.some(
+        (l) => l.toLowerCase() === form.sourceLang.toLowerCase() || l.toLowerCase() === form.targetLang.toLowerCase()
+      )
+    const minimum =
+      form.certificationTpe === 'court'
+        ? (isPremiumCourt ? minimums.courtPremium : minimums.court)
+        : form.certificationTpe === 'general'
+          ? minimums.certified
+          : minimums.standard
 
     // Try direct pair
     const direct = langPairs.find(

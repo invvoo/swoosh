@@ -15,7 +15,9 @@ type SystemSetting = { key: string; value: string }
 const SYSTEM_SETTING_LABELS: Record<string, string> = {
   translation_minimum_standard: 'Translation Minimum (Standard)',
   translation_minimum_certified: 'Translation Minimum (General/Company Certified)',
-  translation_minimum_court: 'Translation Minimum (Court Certified)',
+  translation_minimum_court: 'Translation Minimum (Court — Standard Languages)',
+  translation_minimum_court_premium: 'Translation Minimum (Court — Japanese & Hebrew)',
+  translation_court_premium_langs: 'Court Premium Languages (comma-separated)',
   interpretation_rate_standard: 'Interpretation Rate — Standard (3 hr)',
   interpretation_rate_court: 'Interpretation Rate — Court Certified (3 hr)',
   interpretation_phone_rate: 'Phone Interpretation Rate (per min)',
@@ -28,6 +30,7 @@ const SYSTEM_SETTING_LABELS: Record<string, string> = {
 
 const CURRENCY_KEYS = new Set([
   'translation_minimum_standard', 'translation_minimum_certified',
+  'translation_minimum_court', 'translation_minimum_court_premium',
   'interpretation_rate_standard', 'interpretation_rate_court',
   'interpretation_phone_rate', 'notary_flat_rate',
   'apostille_first', 'apostille_additional', 'apostille_death_certificate',
