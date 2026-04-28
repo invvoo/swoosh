@@ -83,7 +83,8 @@ export default function NotaryPage() {
           </p>
           <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 mb-6 text-left space-y-1">
             <p className="font-medium">Standard Pricing:</p>
-            <p>Apostille: $150 first document · $50 each additional</p>
+            <p>Notarization: $15 per document</p>
+            <p>Apostille: $95 per document · $50 each additional (same submission)</p>
             <p>Death Certificate (Norwalk State Registrar): $199.95</p>
           </div>
           <p className="text-sm text-gray-500">
@@ -108,11 +109,11 @@ export default function NotaryPage() {
 
         {/* Pricing callout */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-sm text-blue-800">
-          <p className="font-semibold mb-1">Standard Apostille Pricing</p>
+          <p className="font-semibold mb-1">Standard Pricing</p>
           <ul className="space-y-0.5 text-blue-700">
-            <li>Apostille certification: <strong>$150</strong> first document · <strong>$50</strong> each additional (same submission)</li>
+            <li>Notarization: <strong>$15</strong> per document</li>
+            <li>Apostille: <strong>$95</strong> per document · <strong>$50</strong> each additional (same submission)</li>
             <li>Death certificate (Norwalk State Registrar): <strong>$199.95</strong></li>
-            <li>Notarization-only pricing provided in your quote</li>
           </ul>
         </div>
 

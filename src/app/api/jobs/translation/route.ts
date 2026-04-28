@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { extractWordCount } from '@/lib/pdf/word-counter'
-import { calculateQuote } from '@/lib/quote/calculator'
+import { calculateQuote, CERTIFIED_SPECIALTY_NAME } from '@/lib/quote/calculator'
 
 const schema = z.object({
   clientName: z.string().min(1),
@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
   const { clientName, clientEmail, clientPhone, clientCompany, sourceLang, targetLang, specialtyId } = parsed.data
   const supabase = createServiceClient()
 
-  // Fetch language pair rate + specialty multiplier
-  const [{ data: langPair }, { data: specialty }] = await Promise.all([
+  // Fetch language pair, specialty, and minimums in parallel
+  const [{ data: langPair }, { data: specialty }, { data: settings }] = await Promise.all([
     supabase
       .from('language_pairs')
       .select('id, per_word_rate')
@@ -51,17 +51,27 @@ export async function POST(req: NextRequest) {
       .select('id, name, multiplier')
       .eq('id', specialtyId)
       .single(),
+    supabase
+      .from('system_settings')
+      .select('key, value')
+      .in('key', ['translation_minimum_standard', 'translation_minimum_certified']),
   ])
 
   if (!langPair) return NextResponse.json({ error: 'Language pair not found or not supported' }, { status: 400 })
   if (!specialty) return NextResponse.json({ error: 'Specialty not found' }, { status: 400 })
 
+  const settingsMap = Object.fromEntries((settings ?? []).map((s) => [s.key, Number(s.value)]))
+  const isCertified = specialty.name === CERTIFIED_SPECIALTY_NAME
+  const minimum = isCertified
+    ? (settingsMap['translation_minimum_certified'] ?? 250)
+    : (settingsMap['translation_minimum_standard'] ?? 95)
+
   // Extract word count
   const buffer = Buffer.from(await file.arrayBuffer())
   const wordCount = await extractWordCount(buffer, file.name)
 
-  // Calculate quote
-  const quote = calculateQuote(wordCount, Number(langPair.per_word_rate), Number(specialty.multiplier), specialty.name)
+  // Calculate quote with minimum
+  const quote = calculateQuote(wordCount, Number(langPair.per_word_rate), Number(specialty.multiplier), specialty.name, minimum)
 
   // Upload document to Supabase Storage
   const jobId = crypto.randomUUID()
@@ -78,7 +88,10 @@ export async function POST(req: NextRequest) {
   // Upsert client
   const { data: client, error: clientError } = await supabase
     .from('clients')
-    .upsert({ contact_name: clientName, email: clientEmail, phone: clientPhone ?? null, company_name: clientCompany ?? null }, { onConflict: 'email', ignoreDuplicates: false })
+    .upsert(
+      { contact_name: clientName, email: clientEmail, phone: clientPhone ?? null, company_name: clientCompany ?? null },
+      { onConflict: 'email', ignoreDuplicates: false }
+    )
     .select('id')
     .single()
 
@@ -111,8 +124,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
   }
 
-  // Log initial status
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
 
-  return NextResponse.json({ jobId: job.id, wordCount, estimatedQuote: quote.finalAmount })
+  return NextResponse.json({ jobId: job.id, wordCount, estimatedQuote: quote.finalAmount, minimumApplied: quote.minimumApplied })
 }
