@@ -86,7 +86,7 @@ export function resolveCertMinimum(
   targetLang: string,
   settingsMap: Record<string, number | string>,
 ): number {
-  if (certificationTpe === 'general') return Number(settingsMap['translation_minimum_certified'] ?? 250)
+  if (certificationTpe === 'general') return Number(settingsMap['translation_minimum_certified'] ?? 120)
   if (certificationTpe !== 'court') return Number(settingsMap['translation_minimum_standard'] ?? 95)
 
   const premiumLangsRaw = String(settingsMap['translation_court_premium_langs'] ?? 'Japanese,Hebrew')

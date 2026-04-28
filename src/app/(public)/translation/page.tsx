@@ -26,7 +26,7 @@ const CERT_SPECIALTY: Record<CertificationType, string> = {
 export default function TranslationRequestPage() {
   const [langPairs, setLangPairs] = useState<{ id: string; source_lang: string; target_lang: string; per_word_rate: number }[]>([])
   const [specialties, setSpecialties] = useState<{ name: string; multiplier: number }[]>([])
-  const [minimums, setMinimums] = useState({ standard: 95, certified: 250, court: 275, courtPremium: 450 })
+  const [minimums, setMinimums] = useState({ standard: 95, certified: 120, court: 275, courtPremium: 450 })
   const [courtPremiumLangs, setCourtPremiumLangs] = useState<string[]>(['Japanese', 'Hebrew'])
 
   // File + detection state
