@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { render } from '@react-email/components'
 import { createServiceClient } from '@/lib/supabase/server'
+import { calculateInterpretationQuote } from '@/lib/quote/pricing'
+import { getResend, FROM_EMAIL } from '@/lib/email/client'
+import { AutoQuoteEstimateEmail } from '@/lib/email/templates/auto-quote-estimate'
 
 const schema = z.object({
   clientName: z.string().min(1),
@@ -32,6 +36,11 @@ export async function POST(req: NextRequest) {
 
   if (clientError || !client) return NextResponse.json({ error: 'Failed to create client' }, { status: 500 })
 
+  // Calculate interpretation quote server-side
+  const locationType = jobData.locationType ?? 'in_person'
+  const durationMinutes = jobData.durationMinutes ?? 60
+  const quote = await calculateInterpretationQuote(locationType, durationMinutes, supabase)
+
   const { data: job, error: jobError } = await supabase
     .from('jobs')
     .insert({
@@ -41,11 +50,14 @@ export async function POST(req: NextRequest) {
       source_lang: jobData.sourceLang,
       target_lang: jobData.targetLang,
       scheduled_at: jobData.scheduledAt ?? null,
-      duration_minutes: jobData.durationMinutes ?? null,
-      location_type: jobData.locationType ?? null,
+      duration_minutes: durationMinutes,
+      location_type: locationType,
       location_details: jobData.locationDetails ?? null,
       interpreter_notes: jobData.interpreterNotes ?? null,
-    })
+      quote_amount: quote.amount,
+      quote_interpretation_rate: quote.rate,
+      quote_billed_minutes: quote.billedMinutes,
+    } as any)
     .select('id')
     .single()
 
@@ -53,5 +65,42 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
 
-  return NextResponse.json({ jobId: job.id })
+  // Send auto-quote email — failure does not fail the job creation
+  try {
+    const scheduledAtFormatted = jobData.scheduledAt
+      ? new Date(jobData.scheduledAt).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : undefined
+
+    const html = await render(
+      AutoQuoteEstimateEmail({
+        clientName,
+        jobType: 'interpretation',
+        sourceLang: jobData.sourceLang,
+        targetLang: jobData.targetLang,
+        locationType,
+        scheduledAt: scheduledAtFormatted,
+        durationMinutes,
+        estimatedAmount: quote.amount,
+        hasMissingPricing: false,
+      }),
+    )
+
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to: clientEmail,
+      subject: 'Your Interpretation Request — Estimated Quote',
+      html,
+    })
+  } catch {
+    // Email failure is non-fatal; job was already created
+  }
+
+  return NextResponse.json({ jobId: job.id, estimatedQuote: quote.amount, billedMinutes: quote.billedMinutes })
 }

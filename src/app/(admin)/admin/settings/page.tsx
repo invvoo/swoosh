@@ -14,7 +14,8 @@ type SystemSetting = { key: string; value: string }
 
 const SYSTEM_SETTING_LABELS: Record<string, string> = {
   translation_minimum_standard: 'Translation Minimum (Standard)',
-  translation_minimum_certified: 'Translation Minimum (Certified)',
+  translation_minimum_certified: 'Translation Minimum (General/Company Certified)',
+  translation_minimum_court: 'Translation Minimum (Court Certified)',
   interpretation_rate_standard: 'Interpretation Rate — Standard (3 hr)',
   interpretation_rate_court: 'Interpretation Rate — Court Certified (3 hr)',
   interpretation_phone_rate: 'Phone Interpretation Rate (per min)',
@@ -253,6 +254,62 @@ function SystemSettingRow({ s, onSave }: { s: SystemSetting; onSave: (key: strin
   )
 }
 
+// ── AI Rules Placeholder ─────────────────────────────────────────────────────
+
+function AIRulesSection({ value, onSave }: { value: string; onSave: (key: string, value: string) => Promise<void> }) {
+  const [editing, toggleEditing] = useToggle()
+  const [text, setText] = useState(value)
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    await onSave('ai_translation_rules', text)
+    setSaving(false)
+    toggleEditing()
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-3 mb-2">
+        <h2 className="text-lg font-semibold text-gray-900">AI Translation Output Rules</h2>
+        <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 rounded px-2 py-0.5 font-medium">Experimental — Future Feature</span>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        Define critical output rules that will be passed to the AI translation system. This feature is not yet active — rules defined here will be applied when AI translation is enabled.
+      </p>
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        {editing ? (
+          <div className="space-y-3">
+            <textarea
+              className="w-full h-48 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Enter AI translation output rules here…"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={save} disabled={saving}>
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Save Rules'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={toggleEditing}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {text ? (
+              <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 rounded p-3 max-h-48 overflow-auto">{text}</pre>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No rules defined yet.</p>
+            )}
+            <Button size="sm" variant="outline" onClick={toggleEditing}>
+              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit Rules
+            </Button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -402,6 +459,12 @@ export default function SettingsPage() {
           </div>
         </section>
       )}
+
+      {/* AI Translation Rules — Experimental Placeholder */}
+      <AIRulesSection
+        value={systemSettings.find((s) => s.key === 'ai_translation_rules')?.value ?? ''}
+        onSave={saveSystemSetting}
+      />
     </div>
   )
 }
