@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -9,21 +9,31 @@ import { Upload, CheckCircle, Loader2, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
+const CERTIFIED_SPECIALTY_NAME = 'Certified (USCIS)'
+
 export default function TranslationRequestPage() {
   const [langPairs, setLangPairs] = useState<any[]>([])
   const [specialties, setSpecialties] = useState<any[]>([])
+  const [minimums, setMinimums] = useState({ standard: 95, certified: 250 })
   const [file, setFile] = useState<File | null>(null)
   const [form, setForm] = useState({ clientName: '', clientEmail: '', clientPhone: '', clientCompany: '', sourceLang: '', targetLang: '', specialtyId: '' })
   const [preview, setPreview] = useState<{ amount: number; wordCount: number } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.from('language_pairs').select('id, source_lang, target_lang, per_word_rate').eq('is_active', true).order('source_lang').then(({ data }) => setLangPairs(data ?? []))
     supabase.from('specialty_multipliers').select('id, name, multiplier').eq('is_active', true).order('name').then(({ data }) => setSpecialties(data ?? []))
+    supabase.from('system_settings').select('key, value').in('key', ['translation_minimum_standard', 'translation_minimum_certified']).then(({ data }) => {
+      if (!data) return
+      const map = Object.fromEntries(data.map((s) => [s.key, Number(s.value)]))
+      setMinimums({
+        standard: map['translation_minimum_standard'] ?? 95,
+        certified: map['translation_minimum_certified'] ?? 250,
+      })
+    })
   }, [])
 
   // Unique source langs for first dropdown
@@ -31,33 +41,6 @@ export default function TranslationRequestPage() {
   const targetLangsForSource = langPairs.filter((lp) => lp.source_lang === form.sourceLang)
   const selectedPair = langPairs.find((lp) => lp.source_lang === form.sourceLang && lp.target_lang === form.targetLang)
   const selectedSpecialty = specialties.find((s) => s.id === form.specialtyId)
-
-  // Live quote preview via word count estimation (client-side heuristic; server confirms)
-  useEffect(() => {
-    if (!file || !selectedPair || !selectedSpecialty) { setPreview(null); return }
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      const fd = new FormData()
-      fd.append('document', file)
-      fd.append('clientName', form.clientName || 'Preview')
-      fd.append('clientEmail', form.clientEmail || 'preview@example.com')
-      fd.append('sourceLang', form.sourceLang)
-      fd.append('targetLang', form.targetLang)
-      fd.append('specialtyId', form.specialtyId)
-      // Use the calculate endpoint for preview
-      const res = await fetch('/api/quotes/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wordCount: 100, // placeholder; will be overridden by server on submit
-          languagePairId: selectedPair.id,
-          specialtyId: form.specialtyId,
-        }),
-      })
-      // We can't extract word count client-side easily, so just show rate info
-    }, 500)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [file, form.sourceLang, form.targetLang, form.specialtyId])
 
   function set(key: string) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -193,12 +176,27 @@ export default function TranslationRequestPage() {
           </div>
 
           {/* Rate preview */}
-          {selectedPair && selectedSpecialty && (
-            <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700">
-              Rate: ${Number(selectedPair.per_word_rate).toFixed(4)}/word × {Number(selectedSpecialty.multiplier).toFixed(2)} ({selectedSpecialty.name}) multiplier.
-              Final quote sent after our team reviews your document.
-            </div>
-          )}
+          {selectedPair && selectedSpecialty && (() => {
+            const isCertified = selectedSpecialty.name === CERTIFIED_SPECIALTY_NAME
+            const minimum = isCertified ? minimums.certified : minimums.standard
+            const effectiveRate = Number(selectedPair.per_word_rate) * Number(selectedSpecialty.multiplier)
+            const est250 = Math.max(Math.ceil(250 * effectiveRate * 100) / 100, minimum)
+            const est500 = Math.max(Math.ceil(500 * effectiveRate * 100) / 100, minimum)
+            const est1000 = Math.max(Math.ceil(1000 * effectiveRate * 100) / 100, minimum)
+            return (
+              <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 space-y-1.5">
+                <p className="font-semibold text-blue-800">Estimated Pricing</p>
+                <p>${effectiveRate.toFixed(4)}/word · {selectedSpecialty.name}</p>
+                <p className="text-blue-600">Minimum: {formatCurrency(minimum)}</p>
+                <div className="text-xs text-blue-500 pt-0.5 space-y-0.5">
+                  <p>≈ 250 words → {formatCurrency(est250)}</p>
+                  <p>≈ 500 words → {formatCurrency(est500)}</p>
+                  <p>≈ 1,000 words → {formatCurrency(est1000)}</p>
+                </div>
+                <p className="text-xs text-blue-400 pt-0.5">Exact word count extracted from your document on submit. Final quote sent by email for your approval before any work begins.</p>
+              </div>
+            )
+          })()}
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
 

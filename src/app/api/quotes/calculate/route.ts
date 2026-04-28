@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
-import { calculateQuote } from '@/lib/quote/calculator'
+import { calculateQuote, CERTIFIED_SPECIALTY_NAME } from '@/lib/quote/calculator'
 
 const schema = z.object({
   wordCount: z.coerce.number().int().min(1),
@@ -17,15 +17,22 @@ export async function POST(req: NextRequest) {
   const { wordCount, languagePairId, specialtyId } = parsed.data
   const supabase = createServiceClient()
 
-  const [{ data: langPair }, { data: specialty }] = await Promise.all([
+  const [{ data: langPair }, { data: specialty }, { data: settings }] = await Promise.all([
     supabase.from('language_pairs').select('per_word_rate').eq('id', languagePairId).single(),
     supabase.from('specialty_multipliers').select('name, multiplier').eq('id', specialtyId).single(),
+    supabase.from('system_settings').select('key, value').in('key', ['translation_minimum_standard', 'translation_minimum_certified']),
   ])
 
   if (!langPair || !specialty) {
     return NextResponse.json({ error: 'Invalid language pair or specialty' }, { status: 400 })
   }
 
-  const breakdown = calculateQuote(wordCount, Number(langPair.per_word_rate), Number(specialty.multiplier), specialty.name)
+  const settingsMap = Object.fromEntries((settings ?? []).map((s) => [s.key, Number(s.value)]))
+  const isCertified = specialty.name === CERTIFIED_SPECIALTY_NAME
+  const minimum = isCertified
+    ? (settingsMap['translation_minimum_certified'] ?? 250)
+    : (settingsMap['translation_minimum_standard'] ?? 95)
+
+  const breakdown = calculateQuote(wordCount, Number(langPair.per_word_rate), Number(specialty.multiplier), specialty.name, minimum)
   return NextResponse.json(breakdown)
 }
