@@ -284,6 +284,13 @@ export type Database = {
           delivered_at: string | null
           delivery_token: string | null
           delivery_email_sent_at: string | null
+          detected_source_lang: string | null
+          detected_source_lang_confidence: number | null
+          certification_type: 'none' | 'general' | 'court' | null
+          missing_pricing_warning: string | null
+          quote_interpretation_rate: number | null
+          quote_billed_minutes: number | null
+          quote_is_pivot: boolean
           employee_notes: string | null
           created_by: string | null
           created_at: string
@@ -338,6 +345,13 @@ export type Database = {
           delivered_at?: string | null
           delivery_token?: string | null
           delivery_email_sent_at?: string | null
+          detected_source_lang?: string | null
+          detected_source_lang_confidence?: number | null
+          certification_type?: 'none' | 'general' | 'court' | null
+          missing_pricing_warning?: string | null
+          quote_interpretation_rate?: number | null
+          quote_billed_minutes?: number | null
+          quote_is_pivot?: boolean
           employee_notes?: string | null
           created_by?: string | null
           created_at?: string
@@ -392,6 +406,13 @@ export type Database = {
           delivered_at?: string | null
           delivery_token?: string | null
           delivery_email_sent_at?: string | null
+          detected_source_lang?: string | null
+          detected_source_lang_confidence?: number | null
+          certification_type?: 'none' | 'general' | 'court' | null
+          missing_pricing_warning?: string | null
+          quote_interpretation_rate?: number | null
+          quote_billed_minutes?: number | null
+          quote_is_pivot?: boolean
           employee_notes?: string | null
           created_by?: string | null
           created_at?: string

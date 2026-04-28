@@ -25,6 +25,7 @@ export default function InterpretationRequestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [estimatedQuote, setEstimatedQuote] = useState<{ amount: number; billedMinutes: number } | null>(null)
 
   useEffect(() => {
     createClient().from('language_pairs').select('id, source_lang, target_lang').eq('is_active', true).order('source_lang')
@@ -36,8 +37,9 @@ export default function InterpretationRequestPage() {
       setForm((f) => ({ ...f, [key]: e.target.value }))
   }
 
-  const sourceLangs = Array.from(new Set(langPairs.map((lp) => lp.source_lang))).sort()
-  const targetLangsForSource = langPairs.filter((lp) => lp.source_lang === form.sourceLang)
+  const allLanguages = Array.from(
+    new Set([...langPairs.map((lp) => lp.source_lang), ...langPairs.map((lp) => lp.target_lang)])
+  ).sort()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,21 +61,44 @@ export default function InterpretationRequestPage() {
       }),
     })
 
-    if (res.ok) { setSuccess(true) } else {
+    if (res.ok) {
+      const data = await res.json()
+      setEstimatedQuote({ amount: data.estimatedQuote, billedMinutes: data.billedMinutes })
+      setSuccess(true)
+    } else {
       setError('Something went wrong. Please call us at (213) 385-7781.')
       setSubmitting(false)
     }
   }
 
   if (success) {
+    const requestedMinutes = parseInt(form.durationMinutes, 10)
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">Request Received!</h2>
-          <p className="text-gray-500 text-sm mb-6">
-            We&apos;ll review your interpreting request and confirm availability. Expect a response within 2 business hours.
+          <p className="text-gray-500 text-sm mb-4">
+            We received your interpretation request.
           </p>
+
+          {estimatedQuote && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 text-left">
+              <p className="text-blue-800 font-semibold text-base">
+                Estimated quote: ${estimatedQuote.amount.toFixed(2)}
+              </p>
+              {estimatedQuote.billedMinutes !== requestedMinutes && (
+                <p className="text-blue-600 text-sm mt-1">
+                  Based on {estimatedQuote.billedMinutes} minutes (3-hour minimum applies)
+                </p>
+              )}
+            </div>
+          )}
+
+          <p className="text-gray-500 text-sm mb-6">
+            This is an estimate. Our team will confirm availability and send you a formal quote.
+          </p>
+
           <p className="text-sm text-gray-500">
             Questions? Call <a href="tel:2133857781" className="text-blue-600 font-medium">(213) 385-7781</a>
           </p>
@@ -124,15 +149,17 @@ export default function InterpretationRequestPage() {
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
                   value={form.sourceLang} onChange={(e) => setForm((f) => ({ ...f, sourceLang: e.target.value, targetLang: '' }))}>
                   <option value="">Select…</option>
-                  {sourceLangs.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+                  {allLanguages.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
                 <Label>Language To *</Label>
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
-                  value={form.targetLang} onChange={set('targetLang')} disabled={!form.sourceLang}>
+                  value={form.targetLang} onChange={set('targetLang')}>
                   <option value="">Select…</option>
-                  {targetLangsForSource.map((lp) => <option key={lp.id} value={lp.target_lang}>{lp.target_lang}</option>)}
+                  {allLanguages.filter((lang) => lang !== form.sourceLang).map((lang) => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">

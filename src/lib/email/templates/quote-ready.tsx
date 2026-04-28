@@ -21,7 +21,7 @@ export function QuoteReadyEmail({
   quoteToken,
   expiresAt,
 }: QuoteReadyEmailProps) {
-  const quoteUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/quote/${quoteToken}`
+  const quoteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/quote/${quoteToken}`
   const serviceLabel = sourceLang && targetLang
     ? `${sourceLang} → ${targetLang} ${jobType}`
     : jobType
