@@ -96,8 +96,8 @@ export function resolveCertMinimum(
     premiumLangs.includes(targetLang.toLowerCase())
 
   return isPremium
-    ? Number(settingsMap['translation_minimum_court_premium'] ?? 750)
-    : Number(settingsMap['translation_minimum_court'] ?? 550)
+    ? Number(settingsMap['translation_minimum_court_premium'] ?? 450)
+    : Number(settingsMap['translation_minimum_court'] ?? 275)
 }
 
 /**
