@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/admin/sidebar'
 
@@ -6,7 +5,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect('/admin/login')
+  if (!user) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
