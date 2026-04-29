@@ -385,9 +385,10 @@ async function sendAutoQuoteEmail(params: {
   certificationTpe: string; wordCount: number; estimatedAmount: number; hasMissingPricing: boolean
 }) {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[translation] RESEND_API_KEY not set — skipping client auto-quote email')
+    console.error('[translation] RESEND_API_KEY not set — skipping client auto-quote email')
     return
   }
+  console.log('[translation] Sending client email to', params.clientEmail)
   const html = await render(AutoQuoteEstimateEmail({
     clientName: params.clientName, jobType: 'translation',
     sourceLang: params.sourceLang, targetLang: params.targetLang,

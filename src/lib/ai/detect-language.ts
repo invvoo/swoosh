@@ -23,7 +23,7 @@ export async function detectLanguage(text: string): Promise<DetectionResult> {
       messages: [
         {
           role: 'user',
-          content: `Detect the language of the following text. Respond with ONLY a JSON object in this exact format: {"language": "English", "confidence": 0.99}\n\nText:\n${excerpt}`,
+          content: `Detect the language of the following text. Use these exact names for Chinese variants: "Chinese (Simplified)" for Mandarin/Simplified, "Chinese (Traditional)" for Traditional Chinese, "Cantonese" for Cantonese. For Persian/Farsi use "Persian (Farsi)". Respond with ONLY a JSON object: {"language": "English", "confidence": 0.99}\n\nText:\n${excerpt}`,
         },
       ],
     })
@@ -40,7 +40,8 @@ export async function detectLanguage(text: string): Promise<DetectionResult> {
     }
 
     const parsed = JSON.parse(match[0]) as { language?: unknown; confidence?: unknown }
-    const language = typeof parsed.language === 'string' && parsed.language ? parsed.language : 'Unknown'
+    const rawLang = typeof parsed.language === 'string' && parsed.language ? parsed.language : 'Unknown'
+    const language = normalizeLanguageName(rawLang)
     const rawConf = typeof parsed.confidence === 'number' ? parsed.confidence : 0
     const confidence = Math.min(1, Math.max(0, rawConf))
 
@@ -48,4 +49,42 @@ export async function detectLanguage(text: string): Promise<DetectionResult> {
   } catch {
     return { language: 'Unknown', confidence: 0 }
   }
+}
+
+// Maps common AI-returned names to the canonical names used in our language_pairs table.
+const LANG_ALIASES: Record<string, string> = {
+  'chinese': 'Chinese (Simplified)',
+  'chinese simplified': 'Chinese (Simplified)',
+  'mandarin': 'Chinese (Simplified)',
+  'mandarin chinese': 'Chinese (Simplified)',
+  'simplified chinese': 'Chinese (Simplified)',
+  'chinese traditional': 'Chinese (Traditional)',
+  'traditional chinese': 'Chinese (Traditional)',
+  'cantonese chinese': 'Cantonese',
+  'farsi': 'Persian (Farsi)',
+  'persian': 'Persian (Farsi)',
+  'dari persian': 'Dari',
+  'tagalog/filipino': 'Tagalog',
+  'filipino': 'Tagalog',
+  'malay/indonesian': 'Malay',
+  'bahasa indonesia': 'Indonesian',
+  'bahasa melayu': 'Malay',
+  'haitian creole': 'Haitian Creole',
+  'haitian-creole': 'Haitian Creole',
+  'creole': 'Haitian Creole',
+  'brazilian portuguese': 'Portuguese (Brazilian)',
+  'latin american spanish': 'Spanish (Latin American)',
+  'castilian': 'Spanish',
+  'burmese/myanmar': 'Burmese',
+  'myanmar': 'Burmese',
+  'khmer/cambodian': 'Khmer',
+  'cambodian': 'Khmer',
+  'kurdish': 'Kurdish (Kurmanji)',
+  'pashto/dari': 'Pashto',
+  'flemish': 'Flemish',
+}
+
+function normalizeLanguageName(name: string): string {
+  const lower = name.toLowerCase().trim()
+  return LANG_ALIASES[lower] ?? name
 }
