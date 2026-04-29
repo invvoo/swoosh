@@ -24,6 +24,8 @@ export default function VendorSignupPage() {
     vendorType: 'translator',
     languagePairs: '',
     specialties: [] as string[],
+    perWordRate: '',
+    hourlyRate: '',
     notes: '',
   })
   const [loading, setLoading] = useState(false)
@@ -53,6 +55,8 @@ export default function VendorSignupPage() {
           vendorType: form.vendorType,
           languagePairs: form.languagePairs || undefined,
           specialties: form.specialties.length > 0 ? form.specialties : undefined,
+          perWordRate: form.perWordRate ? parseFloat(form.perWordRate) : undefined,
+          hourlyRate: form.hourlyRate ? parseFloat(form.hourlyRate) : undefined,
           notes: form.notes || undefined,
         }),
       })
@@ -173,6 +177,45 @@ export default function VendorSignupPage() {
                   placeholder="e.g. English, Spanish, French, Chinese"
                 />
                 <p className="text-xs text-gray-400 mt-1">Comma-separated list of languages you work with.</p>
+              </div>
+            )}
+
+            {/* Rates */}
+            {['translator', 'both'].includes(form.vendorType) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Per-Word Rate (USD)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.001"
+                    value={form.perWordRate}
+                    onChange={(e) => setForm((f) => ({ ...f, perWordRate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                    placeholder="0.08"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Your rate per source word for translation work.</p>
+              </div>
+            )}
+
+            {['interpreter', 'both', 'notary', 'other'].includes(form.vendorType) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Rate (USD)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.hourlyRate}
+                    onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                    placeholder="75"
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Your rate per hour.</p>
               </div>
             )}
 
