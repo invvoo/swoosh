@@ -9,6 +9,7 @@ import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap 
 import { calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { ALL_LANGUAGES } from '@/lib/languages'
 
 type CertificationType = 'none' | 'general' | 'court'
 
@@ -80,17 +81,8 @@ export default function TranslationRequestPage() {
       })
   }, [])
 
-  // All unique target languages (from both columns, for target dropdown)
-  const allTargetLangs = Array.from(new Set([
-    ...langPairs.map((lp) => lp.source_lang),
-    ...langPairs.map((lp) => lp.target_lang),
-  ])).sort().filter((lang) => lang !== form.sourceLang)
-
-  // Source languages (for manual override)
-  const allSourceLangs = Array.from(new Set([
-    ...langPairs.map((lp) => lp.source_lang),
-    ...langPairs.map((lp) => lp.target_lang),
-  ])).sort()
+  const allTargetLangs = ALL_LANGUAGES.filter((lang) => lang !== form.sourceLang)
+  const allSourceLangs = ALL_LANGUAGES
 
   // ── File selection + auto-detection ────────────────────────────────────────
 
