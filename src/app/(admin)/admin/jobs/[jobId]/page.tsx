@@ -34,7 +34,7 @@ export default async function JobDetailPage({ params }: Props) {
   if (!job) notFound()
 
   // Resolve employee names for history entries
-  const changedByIds = [...new Set((history ?? []).map((h: any) => h.changed_by).filter(Boolean))]
+  const changedByIds = Array.from(new Set((history ?? []).map((h: any) => h.changed_by).filter(Boolean)))
   let employeeNames: Record<string, string> = {}
   if (changedByIds.length > 0) {
     const { data: employees } = await supabase.from('employees').select('id, full_name').in('id', changedByIds)
