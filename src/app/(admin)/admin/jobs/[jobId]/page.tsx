@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
-import { ArrowLeft, FileText, User, Clock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, FileText, User, Clock, AlertTriangle, Sparkles } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
 import { JobFinalActions } from '@/components/admin/job-final-actions'
+import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -93,6 +94,17 @@ export default async function JobDetailPage({ params }: Props) {
         {job.job_type === 'translation' && (job as any).document_path && (
           <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">View Document</Button>
+          </a>
+        )}
+        {job.job_type === 'translation' && (job as any).document_path &&
+          !['ai_translating', 'ai_review_pending', 'assigned', 'in_progress', 'delivered', 'complete'].includes(job.status) && (
+          <AiTranslateButton jobId={jobId} />
+        )}
+        {job.job_type === 'translation' && (job as any).ai_draft_path && (
+          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <Sparkles className="h-3.5 w-3.5" /> View AI Draft
+            </Button>
           </a>
         )}
       </div>
