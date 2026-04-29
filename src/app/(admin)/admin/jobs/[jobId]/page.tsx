@@ -171,6 +171,19 @@ export default async function JobDetailPage({ params }: Props) {
             {(job as any).notary_address && <div className="flex gap-2"><dt className="text-gray-500 w-24">Address</dt><dd>{(job as any).notary_address}</dd></div>}
             {(job as any).notary_signature_count && <div className="flex gap-2"><dt className="text-gray-500 w-24">Signatures</dt><dd>{(job as any).notary_signature_count}</dd></div>}
             {(job as any).appointment_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Appointment</dt><dd>{formatDateTime((job as any).appointment_at)}</dd></div>}
+            {(job as any).mailing_option && (() => {
+              const labels: Record<string, string> = { standard: 'Standard Mail', hard_copy: 'Hard Copy + Certification & Notary' }
+              return (
+                <div className="flex gap-2">
+                  <dt className="text-gray-500 w-24">Mailing</dt>
+                  <dd className="flex items-center gap-2">
+                    {labels[(job as any).mailing_option] ?? (job as any).mailing_option}
+                    {(job as any).mailing_fedex_overnight && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">FedEx Overnight</span>}
+                    {(job as any).mailing_amount && <span className="text-gray-500 text-xs">({formatCurrency(Number((job as any).mailing_amount))})</span>}
+                  </dd>
+                </div>
+              )
+            })()}
             {(job as any).dispatch_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Dispatched</dt><dd>{formatDateTime((job as any).dispatch_at)}</dd></div>}
             {(job as any).return_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Returned</dt><dd>{formatDateTime((job as any).return_at)}</dd></div>}
             {(job as any).rental_items && Array.isArray((job as any).rental_items) && (job as any).rental_items.length > 0 && (

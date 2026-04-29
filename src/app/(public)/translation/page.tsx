@@ -5,13 +5,27 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/utils'
-import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap, X } from 'lucide-react'
+import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap, X, Mail, Package, Truck } from 'lucide-react'
 import { calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ALL_LANGUAGES } from '@/lib/languages'
 
 type CertificationType = 'none' | 'general' | 'court'
+type MailingOption = 'none' | 'standard' | 'hard_copy'
+
+const MAILING_PRICES = { standard: 10, hard_copy_company: 25, hard_copy_court: 45, fedex: 69 }
+
+function mailingBasePrice(opt: MailingOption, cert: CertificationType): number {
+  if (opt === 'standard') return MAILING_PRICES.standard
+  if (opt === 'hard_copy') return cert === 'court' ? MAILING_PRICES.hard_copy_court : MAILING_PRICES.hard_copy_company
+  return 0
+}
+
+function totalMailingPrice(opt: MailingOption, cert: CertificationType, fedex: boolean): number {
+  const base = mailingBasePrice(opt, cert)
+  return base + (fedex && opt !== 'none' ? MAILING_PRICES.fedex : 0)
+}
 
 const CERT_OPTIONS: { value: CertificationType; label: string; description: string }[] = [
   { value: 'none', label: 'Standard Translation', description: 'For personal use, internal business documents, or any purpose that does not require official certification.' },
@@ -55,6 +69,8 @@ export default function TranslationRequestPage() {
     sourceLang: '',
     targetLang: '',
     certificationTpe: 'none' as CertificationType,
+    mailingOption: 'none' as MailingOption,
+    mailingFedex: false,
   })
 
   const [rushEnabled, setRushEnabled] = useState(false)
@@ -256,6 +272,8 @@ export default function TranslationRequestPage() {
         detectedSourceLangConfidence: detectedConfidence,
         requestedDeliveryDays: rushEnabled && requestedDays !== '' ? Number(requestedDays) : undefined,
         storagePaths,
+        mailingOption: form.mailingOption !== 'none' ? form.mailingOption : undefined,
+        mailingFedex: form.mailingFedex || undefined,
       }),
     })
     const data = await res.json()
@@ -462,7 +480,13 @@ export default function TranslationRequestPage() {
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.certificationTpe === opt.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="certificationTpe" value={opt.value}
                       checked={form.certificationTpe === opt.value}
-                      onChange={() => setForm((f) => ({ ...f, certificationTpe: opt.value }))}
+                      onChange={() => setForm((f) => ({
+                        ...f,
+                        certificationTpe: opt.value,
+                        // reset hard_copy delivery if switching to non-certified
+                        mailingOption: opt.value === 'none' && f.mailingOption === 'hard_copy' ? 'none' : f.mailingOption,
+                        mailingFedex: opt.value === 'none' && f.mailingOption === 'hard_copy' ? false : f.mailingFedex,
+                      }))}
                       className="mt-0.5 accent-[#1a1a2e]" />
                     <div>
                       <p className="font-medium text-sm">{opt.label}</p>
@@ -501,25 +525,84 @@ export default function TranslationRequestPage() {
             </div>
           )}
 
+          {/* Mailing / delivery options */}
+          {uploadedFiles.length > 0 && !detecting && (
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Document Delivery</h2>
+              <p className="text-xs text-gray-400 mb-3">How would you like to receive your finished translation?</p>
+              <div className="space-y-2">
+                {([
+                  { value: 'none' as MailingOption, icon: <Mail className="h-4 w-4 text-gray-400" />, label: 'Digital Only (PDF / email)', desc: 'Delivered as a secure download link by email.', price: 'Free' },
+                  { value: 'standard' as MailingOption, icon: <Package className="h-4 w-4 text-gray-400" />, label: 'Standard Mail', desc: 'Printed copy mailed to your address via USPS.', price: `+${formatCurrency(MAILING_PRICES.standard)}` },
+                  ...(form.certificationTpe !== 'none' ? [{
+                    value: 'hard_copy' as MailingOption,
+                    icon: <Truck className="h-4 w-4 text-gray-400" />,
+                    label: 'Hard Copy with Certification & Notary',
+                    desc: 'Notarized, sealed, and stamped hard copy mailed to your address.',
+                    price: `+${formatCurrency(mailingBasePrice('hard_copy', form.certificationTpe))}`,
+                  }] : []),
+                ] as { value: MailingOption; icon: React.ReactNode; label: string; desc: string; price: string }[]).map((opt) => (
+                  <label key={opt.value}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.mailingOption === opt.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="radio" name="mailingOption" value={opt.value}
+                      checked={form.mailingOption === opt.value}
+                      onChange={() => setForm((f) => ({ ...f, mailingOption: opt.value, mailingFedex: opt.value === 'none' ? false : f.mailingFedex }))}
+                      className="mt-0.5 accent-[#1a1a2e]" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">{opt.icon}<p className="font-medium text-sm">{opt.label}</p></div>
+                        <span className={`text-xs font-semibold shrink-0 ${opt.price === 'Free' ? 'text-green-600' : 'text-gray-700'}`}>{opt.price}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5 pl-5">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              {/* FedEx overnight addon */}
+              {form.mailingOption !== 'none' && (
+                <label className={`mt-2 flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.mailingFedex ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input type="checkbox" className="mt-0.5 accent-blue-600"
+                    checked={form.mailingFedex}
+                    onChange={(e) => setForm((f) => ({ ...f, mailingFedex: e.target.checked }))} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-sm">FedEx Overnight</p>
+                      <span className="text-xs font-semibold text-gray-700">+{formatCurrency(MAILING_PRICES.fedex)}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">Upgrade to FedEx overnight for next-business-day arrival.</p>
+                  </div>
+                </label>
+              )}
+            </div>
+          )}
+
           {/* Rate preview */}
           {form.sourceLang && form.targetLang && uploadedFiles.length > 0 && !detecting && (() => {
+            const mailingCost = totalMailingPrice(form.mailingOption, form.certificationTpe, form.mailingFedex)
             if (preview) {
               const prices = [250, 500, 1000, 10000].map((w) => ({
                 words: w,
-                price: Math.max(Math.ceil(w * preview.perWordRate * 100) / 100, preview.minimum),
+                price: Math.max(Math.ceil(w * preview.perWordRate * 100) / 100, preview.minimum) + mailingCost,
               }))
               return (
                 <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 space-y-1.5">
                   <p className="font-semibold text-blue-800">Estimated Pricing</p>
-                  <p>${preview.perWordRate.toFixed(4)}/word{preview.isPivot ? ' (via English pivot)' : ''}</p>
-                  <p className="text-blue-600">Minimum: {formatCurrency(preview.minimum)}</p>
+                  <p>${preview.perWordRate.toFixed(4)}/word{preview.isPivot ? ' (via English pivot)' : ''} · Minimum: {formatCurrency(preview.minimum)}</p>
+                  {mailingCost > 0 && (
+                    <p className="text-blue-700">
+                      + Delivery: {formatCurrency(mailingBasePrice(form.mailingOption, form.certificationTpe))}
+                      {form.mailingFedex ? ` + FedEx ${formatCurrency(MAILING_PRICES.fedex)}` : ''}
+                      {' '}= {formatCurrency(mailingCost)} mailing
+                    </p>
+                  )}
                   <div className="text-xs text-blue-500 pt-0.5 space-y-0.5">
                     {prices.map(({ words, price }) => (
-                      <p key={words}>≈ {words.toLocaleString()} words → {formatCurrency(price)}</p>
+                      <p key={words}>≈ {words.toLocaleString()} words → {formatCurrency(price)}{mailingCost > 0 ? ' (incl. delivery)' : ''}</p>
                     ))}
                   </div>
                   <p className="text-xs text-blue-400 pt-0.5">
-                    Estimate based on your document's word count. A member of our team will verify the final quote before sending it to you.
+                    Estimate based on word count. Our team will verify before sending your formal quote.
                   </p>
                 </div>
               )

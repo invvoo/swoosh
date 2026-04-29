@@ -34,6 +34,8 @@ const jsonSchema = z.object({
   detectedSourceLang: z.string().optional(),
   detectedSourceLangConfidence: z.coerce.number().min(0).max(1).optional(),
   requestedDeliveryDays: z.coerce.number().int().min(1).max(30).optional(),
+  mailingOption: z.enum(['standard', 'hard_copy']).optional(),
+  mailingFedex: z.boolean().optional(),
   // New: array of pre-uploaded Storage paths
   storagePaths: z.array(z.object({ path: z.string().min(1), name: z.string().min(1) })).min(1),
 }).refine(
@@ -82,6 +84,7 @@ async function handleJson(req: NextRequest) {
     targetLang, certificationTpe, specialtyId,
     detectedSourceLang, detectedSourceLangConfidence,
     requestedDeliveryDays, storagePaths,
+    mailingOption, mailingFedex,
   } = parsed.data
 
   const effectiveSourceLang = parsed.data.sourceLang || detectedSourceLang!
@@ -114,6 +117,7 @@ async function handleJson(req: NextRequest) {
     primaryName: storagePaths[0].name,
     allPaths: storagePaths,
     clientName, clientEmail, clientPhone, clientCompany,
+    mailingOption, mailingFedex,
   })
 }
 
@@ -199,6 +203,8 @@ async function buildAndCreateJob(params: {
   clientEmail: string
   clientPhone?: string
   clientCompany?: string
+  mailingOption?: string
+  mailingFedex?: boolean
   preAssignedJobId?: string
 }) {
   const {
@@ -208,8 +214,18 @@ async function buildAndCreateJob(params: {
     requestedDeliveryDays, wordCount,
     primaryPath, primaryName, allPaths,
     clientName, clientEmail, clientPhone, clientCompany,
+    mailingOption, mailingFedex,
     preAssignedJobId,
   } = params
+
+  const MAILING_PRICES = { standard: 10, hard_copy_company: 25, hard_copy_court: 45, fedex: 69 }
+  let mailingAmount = 0
+  if (mailingOption === 'standard') mailingAmount = MAILING_PRICES.standard
+  else if (mailingOption === 'hard_copy') {
+    const certKey = certificationTpe ?? 'general'
+    mailingAmount = certKey === 'court' ? MAILING_PRICES.hard_copy_court : MAILING_PRICES.hard_copy_company
+  }
+  if (mailingFedex && mailingOption) mailingAmount += MAILING_PRICES.fedex
 
   const [specialtyRow, settingsResult] = await Promise.all([
     resolveSpecialty(supabase, certificationTpe, specialtyId),
@@ -247,6 +263,7 @@ async function buildAndCreateJob(params: {
     } else {
       quoteAmount = q.finalAmount
     }
+    if (mailingAmount > 0 && quoteAmount !== null) quoteAmount += mailingAmount
   }
 
   // Upsert client
@@ -288,6 +305,9 @@ async function buildAndCreateJob(params: {
     certification_type: certificationTpe ?? null,
     missing_pricing_warning: pricing.warning ?? null,
     quote_is_pivot: pricing.isPivot,
+    mailing_option: mailingOption ?? null,
+    mailing_fedex_overnight: mailingFedex ?? false,
+    mailing_amount: mailingAmount > 0 ? mailingAmount : null,
   }
 
   let { data: job, error: jobError } = await supabase
@@ -296,13 +316,25 @@ async function buildAndCreateJob(params: {
     .select('id')
     .single()
 
-  // If document_paths column doesn't exist yet (migration pending), retry without it
-  if (jobError?.message?.includes('document_paths')) {
+  // If new columns don't exist yet (migrations pending), retry with only known columns
+  if (jobError?.message?.includes('document_paths') || jobError?.message?.includes('mailing_')) {
+    const stripped = { ...jobPayload } as any
+    delete stripped.mailing_option
+    delete stripped.mailing_fedex_overnight
+    delete stripped.mailing_amount
     ;({ data: job, error: jobError } = await supabase
       .from('jobs')
-      .insert(jobPayload as any)
+      .insert({ ...stripped, document_paths: null } as any)
       .select('id')
       .single())
+    // If document_paths also missing, strip that too
+    if (jobError?.message?.includes('document_paths')) {
+      ;({ data: job, error: jobError } = await supabase
+        .from('jobs')
+        .insert(stripped as any)
+        .select('id')
+        .single())
+    }
   }
 
   if (jobError || !job) {
