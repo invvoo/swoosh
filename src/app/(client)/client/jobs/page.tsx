@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { JobProgressBar } from '@/components/job-progress-bar'
 import { formatCurrency } from '@/lib/utils'
-import { LogOut, ChevronRight, FileText, Headphones, Package, Stamp } from 'lucide-react'
+import { LogOut, ChevronRight, FileText, Headphones, Package, Stamp, AlertCircle } from 'lucide-react'
 
 const JOB_TYPE_ICONS: Record<string, React.ReactNode> = {
   translation: <FileText className="h-4 w-4" />,
@@ -109,7 +109,8 @@ export default function ClientJobsPage() {
             const date = new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
             return (
-              <Link key={job.id} href={`/client/jobs/${job.id}`} className="block bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 hover:shadow-sm transition-all group">
+              <Link key={job.id} href={`/client/jobs/${job.id}`}
+                className={`block rounded-xl border p-6 hover:shadow-sm transition-all group ${job.status === 'quote_sent' ? 'bg-blue-50 border-blue-200 hover:border-blue-300' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400">{JOB_TYPE_ICONS[job.job_type]}</span>
@@ -119,6 +120,11 @@ export default function ClientJobsPage() {
                     </div>
                   </div>
                   <div className="text-right flex items-center gap-2">
+                    {job.status === 'quote_sent' && (
+                      <span className="flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                        <AlertCircle className="h-3 w-3" /> Action Required
+                      </span>
+                    )}
                     {amount > 0 && <span className="text-sm font-semibold text-[#1a1a2e]">{formatCurrency(amount)}</span>}
                     <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                   </div>
