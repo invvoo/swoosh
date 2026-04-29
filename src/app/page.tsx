@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowRight, Phone, Mail, MapPin, Clock, CheckCircle2 } from 'lucide-react'
+import { LogoImage } from '@/components/logo-image'
 
 const SERVICES = [
   {
@@ -84,7 +85,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="LA Translation" className="h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <LogoImage className="h-8 w-auto" />
             <span className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</span>
           </Link>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">

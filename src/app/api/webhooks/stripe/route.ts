@@ -155,9 +155,6 @@ export async function POST(req: NextRequest) {
 
         await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'ai_translating', new_status: 'ai_review_pending' })
 
-        // Notify employees
-        const { data: employees } = await supabase.from('employees').select('id').eq('is_active', true)
-        // Send to first admin email from env as fallback
         const notifyEmail = process.env.ADMIN_NOTIFY_EMAIL
         if (notifyEmail) {
           const html = await renderAsync(AiDraftReadyEmail({
