@@ -13,7 +13,7 @@ import {
 import * as React from 'react'
 
 export interface NewInquiryEmailProps {
-  jobType: 'translation' | 'interpretation' | 'equipment_rental' | 'notary'
+  jobType: 'translation' | 'interpretation' | 'equipment_rental' | 'notary' | 'transcription'
   jobId: string
   clientName: string
   clientEmail: string
@@ -44,6 +44,7 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   interpretation: 'Interpretation',
   equipment_rental: 'Equipment Rental',
   notary: 'Notary / Apostille',
+  transcription: 'Transcription / Subtitling',
 }
 
 export function NewInquiryEmail({

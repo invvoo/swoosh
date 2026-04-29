@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/admin/sidebar'
+import { redirect } from 'next/navigation'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -7,6 +8,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) {
     return <>{children}</>
+  }
+
+  // Verify the signed-in user is a registered employee
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!employee) {
+    await supabase.auth.signOut()
+    redirect('/admin/login?error=unauthorized')
   }
 
   return (

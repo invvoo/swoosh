@@ -70,7 +70,7 @@ export default function NotaryPage() {
     if (res.ok) {
       setSuccess(true)
     } else {
-      setError('Something went wrong. Please call us at (213) 385-7781.')
+      setError('We were unable to submit your request. Please try again or call us at (213) 385-7781.')
       setSubmitting(false)
     }
   }
@@ -80,15 +80,14 @@ export default function NotaryPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
+          <h2 className="text-xl font-bold mb-2">Notary Request Submitted</h2>
           <p className="text-gray-500 text-sm mb-6">
-            Our team will review your notary request and send you a quote by email.
-            We typically respond within 2 business hours.
+            Your request has been received. A member of our team will review it and send you a formal quote by email, typically within 2 business hours.
           </p>
           <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 mb-6 text-left space-y-1">
-            <p className="font-medium">Standard Pricing:</p>
+            <p className="font-medium">Standard Fees for Reference:</p>
             <p>Notarization: $15 per document</p>
-            <p>Apostille: $95 per document · $50 each additional (same submission)</p>
+            <p>Apostille: $95 per document · $50 each additional document (same submission)</p>
             <p>Death Certificate (Norwalk State Registrar): $199.95</p>
           </div>
           <p className="text-sm text-gray-500">

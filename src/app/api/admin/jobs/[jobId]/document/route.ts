@@ -16,11 +16,14 @@ export async function GET(req: NextRequest, { params }: Props) {
     .from('jobs')
     .select('document_path, document_name, ai_draft_path')
     .eq('id', jobId)
-    .single()
+    .single() as unknown as { data: { document_path: string | null; document_name: string | null; ai_draft_path: string | null; media_path?: string | null } | null }
 
-  const filePath = type === 'draft' ? job?.ai_draft_path : job?.document_path
+  const filePath =
+    type === 'draft' ? job?.ai_draft_path :
+    type === 'media' ? (job as any)?.media_path :
+    job?.document_path
   if (!filePath) {
-    return NextResponse.json({ error: type === 'draft' ? 'AI draft not available yet' : 'Document not found' }, { status: 404 })
+    return NextResponse.json({ error: type === 'draft' ? 'AI draft not available yet' : type === 'media' ? 'Media file not found' : 'Document not found' }, { status: 404 })
   }
 
   const { data: signedUrl, error } = await service.storage

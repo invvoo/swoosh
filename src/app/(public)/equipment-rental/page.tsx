@@ -73,7 +73,7 @@ export default function EquipmentRentalPage() {
     })
 
     if (res.ok) { setSuccess(true) } else {
-      setError('Something went wrong. Please call (213) 368-0700.')
+      setError('We were unable to submit your request. Please try again or call us at (213) 368-0700.')
       setSubmitting(false)
     }
   }
@@ -83,9 +83,9 @@ export default function EquipmentRentalPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
+          <h2 className="text-xl font-bold mb-2">Equipment Rental Request Submitted</h2>
           <p className="text-gray-500 text-sm mb-6">
-            We&apos;ll confirm equipment availability and send you a formal quote by email.
+            Your request has been received. Our team will confirm equipment availability and send you a formal quote by email.
           </p>
           <p className="text-sm text-gray-500">
             Questions? Call <a href="tel:2133680700" className="text-blue-600 font-medium">(213) 368-0700</a>

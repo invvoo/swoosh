@@ -4,6 +4,7 @@ import { JOB_TYPES, STATUS_LABELS, STATUS_COLORS } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { JobActionsDropdown } from '@/components/admin/job-actions-dropdown'
 
 async function getDashboardData(supabase: Awaited<ReturnType<typeof createClient>>) {
   const now = new Date()
@@ -70,22 +71,27 @@ export default async function AdminDashboard() {
             <p className="px-6 py-8 text-center text-gray-400 text-sm">No jobs yet</p>
           )}
           {recentJobs.map((job: any) => (
-            <Link key={job.id} href={`/admin/jobs/${job.id}`} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50 transition-colors">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {(job.clients as any)?.contact_name ?? '—'}
-                </p>
-                <p className="text-xs text-gray-500">{JOB_TYPES[job.job_type as keyof typeof JOB_TYPES]}</p>
+            <div key={job.id} className="flex items-center hover:bg-gray-50 transition-colors group">
+              <Link href={`/admin/jobs/${job.id}`} className="flex items-center gap-4 px-6 py-3 flex-1 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {(job.clients as any)?.contact_name ?? '—'}
+                  </p>
+                  <p className="text-xs text-gray-500">{JOB_TYPES[job.job_type as keyof typeof JOB_TYPES]}</p>
+                </div>
+                <Badge className={cn('text-xs', STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-700')}>
+                  {STATUS_LABELS[job.status] ?? job.status}
+                </Badge>
+                <span className="text-sm text-gray-500 w-20 text-right shrink-0">
+                  {job.quote_adjusted_amount || job.quote_amount
+                    ? formatCurrency(Number(job.quote_adjusted_amount ?? job.quote_amount))
+                    : '—'}
+                </span>
+              </Link>
+              <div className="px-3">
+                <JobActionsDropdown jobId={job.id} status={job.status} />
               </div>
-              <Badge className={cn('text-xs', STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-700')}>
-                {STATUS_LABELS[job.status] ?? job.status}
-              </Badge>
-              <span className="text-sm text-gray-500 w-20 text-right">
-                {job.quote_adjusted_amount || job.quote_amount
-                  ? formatCurrency(Number(job.quote_adjusted_amount ?? job.quote_amount))
-                  : '—'}
-              </span>
-            </Link>
+            </div>
           ))}
         </div>
       </div>

@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
-import { ArrowLeft, FileText, User, Clock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, FileText, User, Clock, AlertTriangle, Sparkles } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
+import { JobFinalActions } from '@/components/admin/job-final-actions'
+import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -16,26 +18,31 @@ export default async function JobDetailPage({ params }: Props) {
   const { jobId } = await params
   const supabase = await createClient()
 
-  const { data: job } = await supabase
-    .from('jobs')
-    .select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name)')
-    .eq('id', jobId)
-    .single()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [
+    { data: job },
+    { data: history },
+    { data: translatorInvoice },
+    { data: adminEmployee },
+  ] = await Promise.all([
+    supabase.from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name)').eq('id', jobId).single(),
+    supabase.from('job_status_history').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
+    supabase.from('translator_invoices').select('*').eq('job_id', jobId).maybeSingle(),
+    user ? supabase.from('employees').select('full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+  ])
 
   if (!job) notFound()
 
-  const { data: history } = await supabase
-    .from('job_status_history')
-    .select('*')
-    .eq('job_id', jobId)
-    .order('created_at', { ascending: false })
+  // Resolve employee names for history entries
+  const changedByIds = Array.from(new Set((history ?? []).map((h: any) => h.changed_by).filter(Boolean)))
+  let employeeNames: Record<string, string> = {}
+  if (changedByIds.length > 0) {
+    const { data: employees } = await supabase.from('employees').select('id, full_name').in('id', changedByIds)
+    employeeNames = Object.fromEntries((employees ?? []).map((e: any) => [e.id, e.full_name]))
+  }
 
-  const { data: translatorInvoice } = await supabase
-    .from('translator_invoices')
-    .select('*')
-    .eq('job_id', jobId)
-    .maybeSingle()
-
+  const adminName = (adminEmployee as any)?.full_name ?? user?.email ?? 'Admin'
   const displayAmount = job.quote_adjusted_amount ?? job.quote_amount
   const client = job.clients as any
   const translator = job.translators as any
@@ -58,6 +65,7 @@ export default async function JobDetailPage({ params }: Props) {
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
         <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
+        <JobFinalActions jobId={jobId} status={job.status} adminName={adminName} />
         {['draft', 'quote_sent', 'quote_accepted', 'paid', 'ai_review_pending'].includes(job.status) && job.job_type === 'translation' && (
           <Link href={`/admin/jobs/${jobId}/quote`}>
             <Button variant="outline" size="sm">Review / Send Quote</Button>
@@ -86,6 +94,17 @@ export default async function JobDetailPage({ params }: Props) {
         {job.job_type === 'translation' && (job as any).document_path && (
           <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm">View Document</Button>
+          </a>
+        )}
+        {job.job_type === 'translation' && (job as any).document_path &&
+          !['ai_translating', 'ai_review_pending', 'assigned', 'in_progress', 'delivered', 'complete'].includes(job.status) && (
+          <AiTranslateButton jobId={jobId} />
+        )}
+        {job.job_type === 'translation' && (job as any).ai_draft_path && (
+          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <Sparkles className="h-3.5 w-3.5" /> View AI Draft
+            </Button>
           </a>
         )}
       </div>
@@ -152,6 +171,19 @@ export default async function JobDetailPage({ params }: Props) {
             {(job as any).notary_address && <div className="flex gap-2"><dt className="text-gray-500 w-24">Address</dt><dd>{(job as any).notary_address}</dd></div>}
             {(job as any).notary_signature_count && <div className="flex gap-2"><dt className="text-gray-500 w-24">Signatures</dt><dd>{(job as any).notary_signature_count}</dd></div>}
             {(job as any).appointment_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Appointment</dt><dd>{formatDateTime((job as any).appointment_at)}</dd></div>}
+            {(job as any).mailing_option && (() => {
+              const labels: Record<string, string> = { standard: 'Standard Mail', hard_copy: 'Hard Copy + Certification & Notary' }
+              return (
+                <div className="flex gap-2">
+                  <dt className="text-gray-500 w-24">Mailing</dt>
+                  <dd className="flex items-center gap-2">
+                    {labels[(job as any).mailing_option] ?? (job as any).mailing_option}
+                    {(job as any).mailing_fedex_overnight && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">FedEx Overnight</span>}
+                    {(job as any).mailing_amount && <span className="text-gray-500 text-xs">({formatCurrency(Number((job as any).mailing_amount))})</span>}
+                  </dd>
+                </div>
+              )
+            })()}
             {(job as any).dispatch_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Dispatched</dt><dd>{formatDateTime((job as any).dispatch_at)}</dd></div>}
             {(job as any).return_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Returned</dt><dd>{formatDateTime((job as any).return_at)}</dd></div>}
             {(job as any).rental_items && Array.isArray((job as any).rental_items) && (job as any).rental_items.length > 0 && (
@@ -162,6 +194,26 @@ export default async function JobDetailPage({ params }: Props) {
                     <div key={i}>{item.qty}× {item.name} @ {formatCurrency(item.ratePerDay)}/day</div>
                   ))}
                 </dd>
+              </div>
+            )}
+            {(job as any).media_name && (
+              <div className="flex gap-2 items-center">
+                <dt className="text-gray-500 w-24">Media File</dt>
+                <dd className="flex items-center gap-2">
+                  <span className="truncate max-w-[200px]">{(job as any).media_name}</span>
+                  <a href={`/api/admin/jobs/${jobId}/document?type=media`} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 text-xs hover:underline">Download</a>
+                </dd>
+              </div>
+            )}
+            {(job as any).transcription_service_type && (
+              <div className="flex gap-2"><dt className="text-gray-500 w-24">Service</dt>
+                <dd className="capitalize">{(job as any).transcription_service_type === 'both' ? 'Transcription + Subtitles' : (job as any).transcription_service_type}</dd>
+              </div>
+            )}
+            {(job as any).media_duration_seconds && (
+              <div className="flex gap-2"><dt className="text-gray-500 w-24">Duration</dt>
+                <dd>{Math.floor((job as any).media_duration_seconds / 60)}m {(job as any).media_duration_seconds % 60}s</dd>
               </div>
             )}
             {displayAmount && <div className="flex gap-2"><dt className="text-gray-500 w-24">Amount</dt><dd className="font-semibold">{formatCurrency(Number(displayAmount))}</dd></div>}
@@ -210,10 +262,13 @@ export default async function JobDetailPage({ params }: Props) {
             {history.map((h: any) => (
               <div key={h.id} className="flex items-start gap-3 text-sm">
                 <span className="text-gray-400 text-xs w-36 flex-shrink-0">{formatDateTime(h.created_at)}</span>
-                <span className="text-gray-600">
+                <span className="text-gray-600 flex-1">
                   {h.old_status && <span className="line-through text-gray-400 mr-1">{STATUS_LABELS[h.old_status] ?? h.old_status}</span>}
                   → <span className="font-medium">{STATUS_LABELS[h.new_status] ?? h.new_status}</span>
                   {h.note && <span className="text-gray-400 ml-2">— {h.note}</span>}
+                  {h.changed_by && employeeNames[h.changed_by] && (
+                    <span className="text-gray-400 ml-2 text-xs">by {employeeNames[h.changed_by]}</span>
+                  )}
                 </span>
               </div>
             ))}

@@ -1,22 +1,36 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/utils'
-import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap } from 'lucide-react'
+import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap, X, Mail, Package, Truck } from 'lucide-react'
 import { calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ALL_LANGUAGES } from '@/lib/languages'
 
 type CertificationType = 'none' | 'general' | 'court'
+type MailingOption = 'none' | 'standard' | 'hard_copy'
+
+const MAILING_PRICES = { standard: 10, hard_copy_company: 25, hard_copy_court: 45, fedex: 69 }
+
+function mailingBasePrice(opt: MailingOption, cert: CertificationType): number {
+  if (opt === 'standard') return MAILING_PRICES.standard
+  if (opt === 'hard_copy') return cert === 'court' ? MAILING_PRICES.hard_copy_court : MAILING_PRICES.hard_copy_company
+  return 0
+}
+
+function totalMailingPrice(opt: MailingOption, cert: CertificationType, fedex: boolean): number {
+  const base = mailingBasePrice(opt, cert)
+  return base + (fedex && opt !== 'none' ? MAILING_PRICES.fedex : 0)
+}
 
 const CERT_OPTIONS: { value: CertificationType; label: string; description: string }[] = [
-  { value: 'none', label: 'No Certification', description: 'Standard translation, no official certification needed' },
-  { value: 'general', label: 'General / Company Certification', description: 'For USCIS, passport office, job applications, government agencies, or internal business use' },
-  { value: 'court', label: 'Court Certification', description: 'For legal proceedings, court submissions, and litigation' },
+  { value: 'none', label: 'Standard Translation', description: 'For personal use, internal business documents, or any purpose that does not require official certification.' },
+  { value: 'general', label: 'Certified Translation', description: 'Accepted by USCIS, passport offices, government agencies, universities, and employers. Includes a signed certificate of accuracy.' },
+  { value: 'court', label: 'Court-Certified Translation', description: 'Required for legal proceedings, court filings, depositions, and litigation. Completed by a court-certified translator.' },
 ]
 
 const CERT_SPECIALTY: Record<CertificationType, string> = {
@@ -25,14 +39,26 @@ const CERT_SPECIALTY: Record<CertificationType, string> = {
   court: 'Court Certified',
 }
 
+const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB per file
+
+interface UploadedFile {
+  file: File
+  storagePath: string | null  // null = not yet uploaded
+  progress: number            // 0–100
+  error: string | null
+}
+
+function formatBytes(b: number) {
+  return b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export default function TranslationRequestPage() {
   const [langPairs, setLangPairs] = useState<{ id: string; source_lang: string; target_lang: string; per_word_rate: number }[]>([])
   const [specialties, setSpecialties] = useState<{ name: string; multiplier: number }[]>([])
   const [minimums, setMinimums] = useState({ standard: 95, certified: 120, court: 275, courtPremium: 450 })
   const [courtPremiumLangs, setCourtPremiumLangs] = useState<string[]>(['Japanese', 'Hebrew'])
 
-  // File + detection state
-  const [file, setFile] = useState<File | null>(null)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [detecting, setDetecting] = useState(false)
   const [detectedLang, setDetectedLang] = useState<string | null>(null)
   const [detectedConfidence, setDetectedConfidence] = useState(0)
@@ -40,9 +66,11 @@ export default function TranslationRequestPage() {
 
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
-    sourceLang: '',    // confirmed source (from detection or manual)
+    sourceLang: '',
     targetLang: '',
     certificationTpe: 'none' as CertificationType,
+    mailingOption: 'none' as MailingOption,
+    mailingFedex: false,
   })
 
   const [rushEnabled, setRushEnabled] = useState(false)
@@ -55,18 +83,14 @@ export default function TranslationRequestPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  useState(() => {
     const supabase = createClient()
     supabase.from('language_pairs').select('id, source_lang, target_lang, per_word_rate').eq('is_active', true)
       .then(({ data }) => setLangPairs(data ?? []))
     supabase.from('specialty_multipliers').select('name, multiplier').eq('is_active', true)
       .then(({ data }) => setSpecialties(data ?? []))
     supabase.from('system_settings').select('key, value')
-      .in('key', [
-        'translation_minimum_standard', 'translation_minimum_certified',
-        'translation_minimum_court', 'translation_minimum_court_premium',
-        'translation_court_premium_langs',
-      ])
+      .in('key', ['translation_minimum_standard','translation_minimum_certified','translation_minimum_court','translation_minimum_court_premium','translation_court_premium_langs'])
       .then(({ data }) => {
         if (!data) return
         const map = Object.fromEntries(data.map((s) => [s.key, s.value]))
@@ -79,35 +103,55 @@ export default function TranslationRequestPage() {
         const premiumRaw = map['translation_court_premium_langs'] ?? 'Japanese,Hebrew'
         setCourtPremiumLangs(premiumRaw.split(',').map((l: string) => l.trim()))
       })
-  }, [])
+  })
 
   const allTargetLangs = ALL_LANGUAGES.filter((lang) => lang !== form.sourceLang)
-  const allSourceLangs = ALL_LANGUAGES
 
-  // ── File selection + auto-detection ────────────────────────────────────────
+  // ── File handling ────────────────────────────────────────────────────────────
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0] ?? null
-    setFile(selected)
-    setDetectedLang(null)
-    setDetectedConfidence(0)
-    setShowManualSource(false)
-    if (!selected) return
+  async function handleFilesAdded(newFiles: FileList | File[]) {
+    const arr = Array.from(newFiles)
+    const valid: File[] = []
+    for (const f of arr) {
+      if (f.size > MAX_FILE_BYTES) {
+        setError(`"${f.name}" is too large (${formatBytes(f.size)}). Maximum is 50 MB per file.`)
+        continue
+      }
+      valid.push(f)
+    }
+    if (valid.length === 0) return
 
+    // Add to state immediately as "uploading"
+    setUploadedFiles((prev) => [
+      ...prev,
+      ...valid.map((f) => ({ file: f, storagePath: null, progress: 0, error: null })),
+    ])
+
+    // Detect language on the first file if not yet detected
+    const isFirstFile = uploadedFiles.length === 0 && valid.length > 0
+    if (isFirstFile) {
+      detectLang(valid[0])
+    }
+
+    // Upload each file directly to Supabase
+    for (let i = 0; i < valid.length; i++) {
+      const f = valid[i]
+      const idx = uploadedFiles.length + i
+      uploadFile(f, idx)
+    }
+  }
+
+  async function detectLang(file: File) {
     setDetecting(true)
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 12000)
     try {
       const fd = new FormData()
-      fd.append('document', selected)
-      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd, signal: controller.signal })
+      fd.append('document', file)
+      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd })
       const data = await res.json()
-      const lang: string = data.language ?? 'Unknown'
-      const conf: number = data.confidence ?? 0
-
+      const lang = data.language ?? 'Unknown'
+      const conf = data.confidence ?? 0
       setDetectedLang(lang)
       setDetectedConfidence(conf)
-
       if (lang !== 'Unknown' && conf >= 0.7) {
         setForm((f) => ({ ...f, sourceLang: lang }))
         setShowManualSource(false)
@@ -115,11 +159,59 @@ export default function TranslationRequestPage() {
         setShowManualSource(true)
       }
     } catch {
-      // Timeout or network error — fall back to manual source language
       setShowManualSource(true)
     } finally {
-      clearTimeout(timeout)
       setDetecting(false)
+    }
+  }
+
+  async function uploadFile(file: File, listIndex: number) {
+    try {
+      // Get signed upload URL
+      const urlRes = await fetch('/api/jobs/translation/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream' }),
+      })
+      const urlData = await urlRes.json()
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'Could not prepare upload')
+
+      const { signedUrl, storagePath } = urlData
+
+      // Upload via XHR for progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) {
+            const pct = Math.round((ev.loaded / ev.total) * 100)
+            setUploadedFiles((prev) => prev.map((uf, i) => i === listIndex ? { ...uf, progress: pct } : uf))
+          }
+        }
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setUploadedFiles((prev) => prev.map((uf, i) => i === listIndex ? { ...uf, storagePath, progress: 100 } : uf))
+            resolve()
+          } else {
+            reject(new Error(`Upload failed (${xhr.status})`))
+          }
+        }
+        xhr.onerror = () => reject(new Error('Upload failed — check your connection.'))
+        xhr.open('PUT', signedUrl)
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+        xhr.send(file)
+      })
+    } catch (err: any) {
+      setUploadedFiles((prev) => prev.map((uf, i) => i === listIndex ? { ...uf, error: err.message } : uf))
+    }
+  }
+
+  function removeFile(index: number) {
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
+    if (index === 0) {
+      setDetectedLang(null)
+      setDetectedConfidence(0)
+      setShowManualSource(false)
+      setForm((f) => ({ ...f, sourceLang: '' }))
     }
   }
 
@@ -128,75 +220,65 @@ export default function TranslationRequestPage() {
       setForm((f) => ({ ...f, [key]: e.target.value }))
   }
 
-  // ── Client-side rate preview ────────────────────────────────────────────────
+  // ── Rate preview ─────────────────────────────────────────────────────────────
 
   function computePreview(): { perWordRate: number; minimum: number; isPivot: boolean } | null {
     if (!form.sourceLang || !form.targetLang) return null
     const specialty = specialties.find((s) => s.name === CERT_SPECIALTY[form.certificationTpe])
     if (!specialty) return null
-
-    const isPremiumCourt =
-      form.certificationTpe === 'court' &&
-      courtPremiumLangs.some(
-        (l) => l.toLowerCase() === form.sourceLang.toLowerCase() || l.toLowerCase() === form.targetLang.toLowerCase()
-      )
-    const minimum =
-      form.certificationTpe === 'court'
-        ? (isPremiumCourt ? minimums.courtPremium : minimums.court)
-        : form.certificationTpe === 'general'
-          ? minimums.certified
-          : minimums.standard
-
-    // Try direct pair
-    const direct = langPairs.find(
-      (lp) => lp.source_lang === form.sourceLang && lp.target_lang === form.targetLang
+    const isPremiumCourt = form.certificationTpe === 'court' && courtPremiumLangs.some(
+      (l) => l.toLowerCase() === form.sourceLang.toLowerCase() || l.toLowerCase() === form.targetLang.toLowerCase()
     )
-    if (direct) {
-      return { perWordRate: Number(direct.per_word_rate) * Number(specialty.multiplier), minimum, isPivot: false }
-    }
-
-    // Try pivot through English
+    const minimum = form.certificationTpe === 'court' ? (isPremiumCourt ? minimums.courtPremium : minimums.court)
+      : form.certificationTpe === 'general' ? minimums.certified : minimums.standard
+    const direct = langPairs.find((lp) => lp.source_lang === form.sourceLang && lp.target_lang === form.targetLang)
+    if (direct) return { perWordRate: Number(direct.per_word_rate) * Number(specialty.multiplier), minimum, isPivot: false }
     if (form.sourceLang !== 'English' && form.targetLang !== 'English') {
       const toEn = langPairs.find((lp) => lp.source_lang === form.sourceLang && lp.target_lang === 'English')
       const fromEn = langPairs.find((lp) => lp.source_lang === 'English' && lp.target_lang === form.targetLang)
-      if (toEn && fromEn) {
-        const rate = (Number(toEn.per_word_rate) + Number(fromEn.per_word_rate)) * Number(specialty.multiplier)
-        return { perWordRate: rate, minimum, isPivot: true }
-      }
+      if (toEn && fromEn) return { perWordRate: (Number(toEn.per_word_rate) + Number(fromEn.per_word_rate)) * Number(specialty.multiplier), minimum, isPivot: true }
     }
-    return null  // pricing not available client-side
+    return null
   }
 
-  // ── Form submission ─────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!file) { setError('Please upload your document.'); return }
+    if (uploadedFiles.length === 0) { setError('Please upload at least one document.'); return }
+    const pendingUploads = uploadedFiles.filter((f) => f.storagePath === null && !f.error)
+    if (pendingUploads.length > 0) { setError('Please wait for all files to finish uploading.'); return }
+    const failedUploads = uploadedFiles.filter((f) => f.error)
+    if (failedUploads.length > 0) { setError('Some files failed to upload. Please remove them and try again.'); return }
     if (!form.sourceLang) { setError('Please confirm or select the source language.'); return }
+
     setSubmitting(true)
     setError(null)
 
-    const fd = new FormData()
-    fd.append('document', file)
-    fd.append('clientName', form.clientName)
-    fd.append('clientEmail', form.clientEmail)
-    if (form.clientPhone) fd.append('clientPhone', form.clientPhone)
-    if (form.clientCompany) fd.append('clientCompany', form.clientCompany)
-    fd.append('targetLang', form.targetLang)
-    fd.append('certificationTpe', form.certificationTpe)
-    if (rushEnabled && requestedDays !== '') fd.append('requestedDeliveryDays', String(requestedDays))
-    fd.append('detectedSourceLang', detectedLang ?? form.sourceLang)
-    fd.append('detectedSourceLangConfidence', String(detectedConfidence))
-    // For manual override or confirmation
-    if (form.sourceLang !== detectedLang || showManualSource) {
-      fd.append('sourceLang', form.sourceLang)
-    }
+    const storagePaths = uploadedFiles.map((uf) => ({ path: uf.storagePath!, name: uf.file.name }))
 
-    const res = await fetch('/api/jobs/translation', { method: 'POST', body: fd })
+    const res = await fetch('/api/jobs/translation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientName: form.clientName,
+        clientEmail: form.clientEmail,
+        clientPhone: form.clientPhone || undefined,
+        clientCompany: form.clientCompany || undefined,
+        targetLang: form.targetLang,
+        certificationTpe: form.certificationTpe,
+        sourceLang: form.sourceLang,
+        detectedSourceLang: detectedLang || form.sourceLang,
+        detectedSourceLangConfidence: detectedConfidence,
+        requestedDeliveryDays: rushEnabled && requestedDays !== '' ? Number(requestedDays) : undefined,
+        storagePaths,
+        mailingOption: form.mailingOption !== 'none' ? form.mailingOption : undefined,
+        mailingFedex: form.mailingFedex || undefined,
+      }),
+    })
     const data = await res.json()
-
     if (!res.ok) {
-      setError(data.error?.formErrors?.[0] ?? data.error ?? 'Something went wrong. Please try again or call us.')
+      setError(data.detail ? `${data.error}: ${data.detail}` : (data.error ?? 'Something went wrong. Please try again or call us.'))
       setSubmitting(false)
     } else {
       setSuccessData({ wordCount: data.wordCount, estimatedQuote: data.estimatedQuote, missingPricing: data.missingPricing })
@@ -204,34 +286,34 @@ export default function TranslationRequestPage() {
     }
   }
 
-  // ── Success screen ──────────────────────────────────────────────────────────
+  // ── Success ───────────────────────────────────────────────────────────────────
 
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
-          {successData?.wordCount && (
+          <h2 className="text-xl font-bold mb-2">Translation Request Submitted</h2>
+          {successData?.wordCount ? (
             <p className="text-gray-600 mb-3">
-              Your document has <strong>{successData.wordCount.toLocaleString()} words</strong>.
+              Your {uploadedFiles.length > 1 ? `${uploadedFiles.length} documents contain` : 'document contains'} <strong>{successData.wordCount.toLocaleString()} words</strong>.
             </p>
-          )}
+          ) : null}
           {successData?.missingPricing ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 mb-4 text-left">
-              Our team will review your request and calculate a custom quote. You&apos;ll receive it by email shortly.
+              This language pair requires custom pricing. A member of our team will prepare your quote and send it by email within one business day.
             </div>
           ) : successData?.estimatedQuote ? (
             <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 mb-4">
               <p className="font-semibold">Estimated Quote: {formatCurrency(successData.estimatedQuote)}</p>
-              <p className="text-xs mt-1">This is an estimate. Our team will review your document and send you a formal quote. Final pricing may be adjusted before you receive it.</p>
+              <p className="text-xs mt-1">A member of our team will review your documents and send a formal quote. You pay only after accepting.</p>
             </div>
           ) : null}
           <p className="text-gray-500 text-sm mb-4">
-            We&apos;ll send you a formal quote by email. You can accept and pay directly from that email — no account needed.
+            You will receive a formal quote by email. Review and approve it with a single click — payment is collected securely online.
           </p>
           <p className="text-xs text-gray-400">
-            Typical response: 2 business hours &nbsp;·&nbsp; Questions? Call{' '}
+            Typical response within 2 business hours &nbsp;·&nbsp; Questions? Call{' '}
             <a href="tel:2133857781" className="text-blue-600 font-medium">(213) 385-7781</a>
           </p>
         </div>
@@ -239,11 +321,8 @@ export default function TranslationRequestPage() {
     )
   }
 
-  // ── Rate preview ────────────────────────────────────────────────────────────
-
   const preview = computePreview()
-
-  // ── Main form ───────────────────────────────────────────────────────────────
+  const allUploaded = uploadedFiles.length > 0 && uploadedFiles.every((f) => f.storagePath !== null || f.error !== null)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -254,12 +333,12 @@ export default function TranslationRequestPage() {
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#1a1a2e]">Request a Translation</h1>
-          <p className="text-gray-500 mt-2">Upload your document — we&apos;ll detect the language and give you an instant estimate</p>
+          <p className="text-gray-500 mt-2">Upload your documents — our system will detect the source language and calculate your quote automatically.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-8 space-y-6">
 
-          {/* Contact info */}
+          {/* Contact */}
           <div>
             <h2 className="font-semibold text-gray-900 mb-4">Your Information</h2>
             <div className="grid grid-cols-2 gap-4">
@@ -284,31 +363,60 @@ export default function TranslationRequestPage() {
 
           {/* File upload */}
           <div>
-            <h2 className="font-semibold text-gray-900 mb-2">Upload Document</h2>
-            <p className="text-xs text-gray-400 mb-3">We&apos;ll automatically detect the source language from your document.</p>
-            <label
-              className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-                file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
-              }`}
-            >
-              <div className="flex flex-col items-center gap-2 text-sm text-gray-500">
-                {file ? (
-                  <><FileText className="h-6 w-6 text-green-600" />
-                    <span className="text-green-700 font-medium">{file.name}</span>
-                    <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(0)} KB</span></>
-                ) : (
-                  <><Upload className="h-6 w-6" />
-                    <span>Click to upload your document</span>
-                    <span className="text-xs">Accepted: .docx, .pdf, .txt</span></>
-                )}
+            <h2 className="font-semibold text-gray-900 mb-2">Upload Documents</h2>
+            <p className="text-xs text-gray-400 mb-3">
+              Accepted: .docx, .pdf, .txt &nbsp;·&nbsp; Up to 50 MB per file &nbsp;·&nbsp; You can add multiple files
+            </p>
+
+            {/* File list */}
+            {uploadedFiles.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {uploadedFiles.map((uf, i) => (
+                  <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${uf.error ? 'border-red-200 bg-red-50' : uf.storagePath ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <FileText className={`h-4 w-4 shrink-0 ${uf.error ? 'text-red-400' : uf.storagePath ? 'text-green-600' : 'text-gray-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-gray-800">{uf.file.name}</p>
+                      {uf.error ? (
+                        <p className="text-xs text-red-600">{uf.error}</p>
+                      ) : uf.storagePath ? (
+                        <p className="text-xs text-green-600">Uploaded — {formatBytes(uf.file.size)}</p>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${uf.progress}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-500 w-8">{uf.progress}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => removeFile(i)} className="text-gray-400 hover:text-gray-600 shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.doc,.pdf,.txt"
-                onChange={handleFileChange} />
+            )}
+
+            {/* Drop / add more */}
+            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer transition-colors border-gray-300 hover:border-blue-400 hover:bg-blue-50/30">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Upload className="h-5 w-5" />
+                <span>{uploadedFiles.length === 0 ? 'Click to select files' : 'Add more files'}</span>
+              </div>
+              <span className="text-xs text-gray-400 mt-0.5">.docx, .pdf, .txt</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".docx,.doc,.pdf,.txt"
+                className="hidden"
+                onChange={(e) => { if (e.target.files) handleFilesAdded(e.target.files); e.target.value = '' }}
+              />
             </label>
           </div>
 
-          {/* Language detection result */}
-          {file && (
+          {/* Language detection */}
+          {uploadedFiles.length > 0 && (
             <div>
               {detecting ? (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -322,27 +430,25 @@ export default function TranslationRequestPage() {
                     <span className="text-[#1a1a2e] font-semibold">{detectedLang}</span>
                     <span className="text-xs text-gray-400">({Math.round(detectedConfidence * 100)}% confidence)</span>
                   </div>
-                  <button type="button" onClick={() => setShowManualSource(true)}
-                    className="text-xs text-blue-600 hover:underline">
+                  <button type="button" onClick={() => setShowManualSource(true)} className="text-xs text-blue-600 hover:underline">
                     Not right?
                   </button>
                 </div>
               ) : null}
 
-              {/* Manual source language override */}
-              {(showManualSource || (!detecting && detectedLang === null)) && (
+              {(showManualSource || (!detecting && !detectedLang)) && (
                 <div className="space-y-1.5">
                   <Label>
                     {detectedLang && detectedLang !== 'Unknown'
                       ? `We detected ${detectedLang} — please confirm or select the correct language`
-                      : 'Select the document\'s source language'}
+                      : "Select the document's source language"}
                   </Label>
                   <select required
                     className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
                     value={form.sourceLang}
                     onChange={(e) => setForm((f) => ({ ...f, sourceLang: e.target.value }))}>
                     <option value="">Select…</option>
-                    {allSourceLangs.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+                    {ALL_LANGUAGES.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
                   </select>
                 </div>
               )}
@@ -350,7 +456,7 @@ export default function TranslationRequestPage() {
           )}
 
           {/* Target language */}
-          {file && !detecting && (
+          {uploadedFiles.length > 0 && !detecting && (
             <div className="space-y-1.5">
               <Label>Translate into *</Label>
               <select required
@@ -363,22 +469,24 @@ export default function TranslationRequestPage() {
             </div>
           )}
 
-          {/* Certification type */}
-          {file && !detecting && (
+          {/* Certification */}
+          {uploadedFiles.length > 0 && !detecting && (
             <div>
               <h2 className="font-semibold text-gray-900 mb-1">Certification Needed?</h2>
               <p className="text-xs text-gray-400 mb-3">Different certification levels have different pricing.</p>
               <div className="space-y-2">
                 {CERT_OPTIONS.map((opt) => (
                   <label key={opt.value}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      form.certificationTpe === opt.value
-                        ? 'border-[#1a1a2e] bg-[#1a1a2e]/5'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.certificationTpe === opt.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
                     <input type="radio" name="certificationTpe" value={opt.value}
                       checked={form.certificationTpe === opt.value}
-                      onChange={() => setForm((f) => ({ ...f, certificationTpe: opt.value }))}
+                      onChange={() => setForm((f) => ({
+                        ...f,
+                        certificationTpe: opt.value,
+                        // reset hard_copy delivery if switching to non-certified
+                        mailingOption: opt.value === 'none' && f.mailingOption === 'hard_copy' ? 'none' : f.mailingOption,
+                        mailingFedex: opt.value === 'none' && f.mailingOption === 'hard_copy' ? false : f.mailingFedex,
+                      }))}
                       className="mt-0.5 accent-[#1a1a2e]" />
                     <div>
                       <p className="font-medium text-sm">{opt.label}</p>
@@ -390,100 +498,131 @@ export default function TranslationRequestPage() {
             </div>
           )}
 
-          {/* Turnaround + Rush fee */}
-          {file && !detecting && form.certificationTpe && (() => {
-            const standardDays = calcTurnaroundDays(100, form.certificationTpe) // placeholder, real calc needs word count
-            return (
-              <div className="space-y-3">
-                <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
-                  <p className="font-medium text-gray-800 mb-0.5">Estimated Turnaround</p>
-                  <p className="text-xs text-gray-500">
-                    {form.certificationTpe === 'court' && 'Court certified: ~2,000 words/day'}
-                    {form.certificationTpe === 'general' && 'Company certified: ~3,500 words/day'}
-                    {form.certificationTpe === 'none' && 'Standard: ~5,000 words/day'}
-                    {' — final turnaround calculated after we count your document words.'}
-                  </p>
+          {/* Rush */}
+          {uploadedFiles.length > 0 && !detecting && (
+            <div>
+              <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rushEnabled ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <input type="checkbox" className="mt-0.5 accent-orange-500"
+                  checked={rushEnabled}
+                  onChange={(e) => { setRushEnabled(e.target.checked); if (!e.target.checked) setRequestedDays('') }} />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5 text-orange-500" />
+                    <p className="font-medium text-sm text-gray-900">Rush Delivery</p>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">+20% per day rushed</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">Need it sooner? We'll prioritize your job.</p>
                 </div>
+              </label>
+              {rushEnabled && (
+                <div className="mt-2 pl-3 space-y-1.5">
+                  <Label className="text-xs">How many business days do you need it in?</Label>
+                  <Input type="number" min={1} max={30} placeholder="e.g. 2" value={requestedDays}
+                    onChange={(e) => setRequestedDays(e.target.value ? parseInt(e.target.value) : '')}
+                    className="max-w-[120px]" />
+                </div>
+              )}
+            </div>
+          )}
 
-                <div>
-                  <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    rushEnabled ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}>
-                    <input type="checkbox" className="mt-0.5 accent-orange-500"
-                      checked={rushEnabled}
-                      onChange={(e) => { setRushEnabled(e.target.checked); if (!e.target.checked) setRequestedDays('') }} />
+          {/* Mailing / delivery options */}
+          {uploadedFiles.length > 0 && !detecting && (
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Document Delivery</h2>
+              <p className="text-xs text-gray-400 mb-3">How would you like to receive your finished translation?</p>
+              <div className="space-y-2">
+                {([
+                  { value: 'none' as MailingOption, icon: <Mail className="h-4 w-4 text-gray-400" />, label: 'Digital Only (PDF / email)', desc: 'Delivered as a secure download link by email.', price: 'Free' },
+                  { value: 'standard' as MailingOption, icon: <Package className="h-4 w-4 text-gray-400" />, label: 'Standard Mail', desc: 'Printed copy mailed to your address via USPS.', price: `+${formatCurrency(MAILING_PRICES.standard)}` },
+                  ...(form.certificationTpe !== 'none' ? [{
+                    value: 'hard_copy' as MailingOption,
+                    icon: <Truck className="h-4 w-4 text-gray-400" />,
+                    label: 'Hard Copy with Certification & Notary',
+                    desc: 'Notarized, sealed, and stamped hard copy mailed to your address.',
+                    price: `+${formatCurrency(mailingBasePrice('hard_copy', form.certificationTpe))}`,
+                  }] : []),
+                ] as { value: MailingOption; icon: React.ReactNode; label: string; desc: string; price: string }[]).map((opt) => (
+                  <label key={opt.value}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.mailingOption === opt.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="radio" name="mailingOption" value={opt.value}
+                      checked={form.mailingOption === opt.value}
+                      onChange={() => setForm((f) => ({ ...f, mailingOption: opt.value, mailingFedex: opt.value === 'none' ? false : f.mailingFedex }))}
+                      className="mt-0.5 accent-[#1a1a2e]" />
                     <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <Zap className="h-3.5 w-3.5 text-orange-500" />
-                        <p className="font-medium text-sm text-gray-900">Rush Delivery</p>
-                        <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">+20% per day rushed</span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">{opt.icon}<p className="font-medium text-sm">{opt.label}</p></div>
+                        <span className={`text-xs font-semibold shrink-0 ${opt.price === 'Free' ? 'text-green-600' : 'text-gray-700'}`}>{opt.price}</span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">Need it sooner? We&apos;ll prioritize your job.</p>
+                      <p className="text-xs text-gray-400 mt-0.5 pl-5">{opt.desc}</p>
                     </div>
                   </label>
-
-                  {rushEnabled && (
-                    <div className="mt-2 pl-3 space-y-1.5">
-                      <Label className="text-xs">How many business days do you need it in?</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={30}
-                        placeholder="e.g. 2"
-                        value={requestedDays}
-                        onChange={(e) => setRequestedDays(e.target.value ? parseInt(e.target.value) : '')}
-                        className="max-w-[120px]"
-                      />
-                      {requestedDays !== '' && (
-                        <p className="text-xs text-orange-600 font-medium">
-                          Rush fee will be calculated after we count your word count. Final quote includes the surcharge.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
-            )
-          })()}
+
+              {/* FedEx overnight addon */}
+              {form.mailingOption !== 'none' && (
+                <label className={`mt-2 flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${form.mailingFedex ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input type="checkbox" className="mt-0.5 accent-blue-600"
+                    checked={form.mailingFedex}
+                    onChange={(e) => setForm((f) => ({ ...f, mailingFedex: e.target.checked }))} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-sm">FedEx Overnight</p>
+                      <span className="text-xs font-semibold text-gray-700">+{formatCurrency(MAILING_PRICES.fedex)}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">Upgrade to FedEx overnight for next-business-day arrival.</p>
+                  </div>
+                </label>
+              )}
+            </div>
+          )}
 
           {/* Rate preview */}
-          {form.sourceLang && form.targetLang && file && !detecting && (() => {
+          {form.sourceLang && form.targetLang && uploadedFiles.length > 0 && !detecting && (() => {
+            const mailingCost = totalMailingPrice(form.mailingOption, form.certificationTpe, form.mailingFedex)
             if (preview) {
-              const est250 = Math.max(Math.ceil(250 * preview.perWordRate * 100) / 100, preview.minimum)
-              const est500 = Math.max(Math.ceil(500 * preview.perWordRate * 100) / 100, preview.minimum)
-              const est1000 = Math.max(Math.ceil(1000 * preview.perWordRate * 100) / 100, preview.minimum)
+              const prices = [250, 500, 1000, 10000].map((w) => ({
+                words: w,
+                price: Math.max(Math.ceil(w * preview.perWordRate * 100) / 100, preview.minimum) + mailingCost,
+              }))
               return (
                 <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 space-y-1.5">
                   <p className="font-semibold text-blue-800">Estimated Pricing</p>
-                  <p>${preview.perWordRate.toFixed(4)}/word{preview.isPivot ? ' (via English pivot)' : ''}</p>
-                  <p className="text-blue-600">Minimum: {formatCurrency(preview.minimum)}</p>
+                  <p>${preview.perWordRate.toFixed(4)}/word{preview.isPivot ? ' (via English pivot)' : ''} · Minimum: {formatCurrency(preview.minimum)}</p>
+                  {mailingCost > 0 && (
+                    <p className="text-blue-700">
+                      + Delivery: {formatCurrency(mailingBasePrice(form.mailingOption, form.certificationTpe))}
+                      {form.mailingFedex ? ` + FedEx ${formatCurrency(MAILING_PRICES.fedex)}` : ''}
+                      {' '}= {formatCurrency(mailingCost)} mailing
+                    </p>
+                  )}
                   <div className="text-xs text-blue-500 pt-0.5 space-y-0.5">
-                    <p>≈ 250 words → {formatCurrency(est250)}</p>
-                    <p>≈ 500 words → {formatCurrency(est500)}</p>
-                    <p>≈ 1,000 words → {formatCurrency(est1000)}</p>
+                    {prices.map(({ words, price }) => (
+                      <p key={words}>≈ {words.toLocaleString()} words → {formatCurrency(price)}{mailingCost > 0 ? ' (incl. delivery)' : ''}</p>
+                    ))}
                   </div>
                   <p className="text-xs text-blue-400 pt-0.5">
-                    Estimate based on word count from your document. Our team reviews before sending the final quote.
+                    Estimate based on word count. Our team will verify before sending your formal quote.
                   </p>
                 </div>
               )
             }
             return (
               <div className="flex items-start gap-2 bg-amber-50 rounded-lg px-4 py-3 text-sm text-amber-700">
-                <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>We don&apos;t have standard pricing for this language pair on file. Our team will review and provide a custom quote.</p>
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <p>This language pair is not in our standard rate schedule. Our team will prepare a custom quote and send it to you by email.</p>
               </div>
             )
           })()}
 
           {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
 
-          <Button type="submit" className="w-full" size="lg" disabled={submitting || detecting}>
+          <Button type="submit" className="w-full" size="lg" disabled={submitting || detecting || uploadedFiles.length === 0}>
             {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</> : 'Submit Translation Request'}
           </Button>
 
           <p className="text-xs text-center text-gray-400">
-            Our team reviews every request before sending a formal quote. You&apos;ll accept and pay from the quote email — no account required.
+            Every request is reviewed by our team before a formal quote is issued. You accept and pay directly from the quote email — no account required.
           </p>
         </form>
       </div>

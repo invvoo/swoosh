@@ -113,6 +113,61 @@ export default function HomePage() {
           <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl" />
         </div>
+
+        {/* Floating language words */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden>
+          {/* Far-back large ghost words for depth */}
+          <span className="absolute font-black text-[7rem] leading-none text-white/[0.03]" style={{ top: '-5%', left: '-2%' }}>翻訳</span>
+          <span className="absolute font-black text-[6rem] leading-none text-blue-400/[0.06]" style={{ bottom: '-8%', right: '-1%' }}>Traducción</span>
+
+          {/* Left side — animated */}
+          <span className="lang-float-slow absolute font-bold text-4xl text-white/[0.18]"
+            style={{ top: '7%', left: '3%', '--rot': '-8deg' } as React.CSSProperties}>Hola</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-blue-300/[0.22]"
+            style={{ top: '26%', left: '1%', '--rot': '5deg', animationDelay: '1.2s' } as React.CSSProperties}>こんにちは</span>
+          <span className="lang-float-slow absolute font-bold text-3xl text-white/[0.15]"
+            style={{ top: '47%', left: '3%', '--rot': '-4deg', animationDelay: '2.5s' } as React.CSSProperties}>Bonjour</span>
+          <span className="lang-float-fast absolute font-bold text-3xl text-indigo-300/[0.20]"
+            style={{ top: '66%', left: '2%', '--rot': '7deg', animationDelay: '0.8s' } as React.CSSProperties}>مرحبا</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-white/[0.14]"
+            style={{ top: '84%', left: '5%', '--rot': '-3deg', animationDelay: '3s' } as React.CSSProperties}>Ciao</span>
+
+          {/* Right side — animated */}
+          <span className="lang-float-mid absolute font-bold text-4xl text-blue-200/[0.20]"
+            style={{ top: '5%', right: '3%', '--rot': '6deg', animationDelay: '0.5s' } as React.CSSProperties}>你好</span>
+          <span className="lang-float-slow absolute font-bold text-2xl text-white/[0.16]"
+            style={{ top: '23%', right: '2%', '--rot': '-7deg', animationDelay: '1.8s' } as React.CSSProperties}>Привет</span>
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-300/[0.18]"
+            style={{ top: '43%', right: '2%', '--rot': '4deg', animationDelay: '2.2s' } as React.CSSProperties}>안녕하세요</span>
+          <span className="lang-float-mid absolute font-bold text-3xl text-indigo-200/[0.18]"
+            style={{ top: '62%', right: '4%', '--rot': '-5deg', animationDelay: '0.3s' } as React.CSSProperties}>Olá</span>
+          <span className="lang-float-slow absolute font-bold text-2xl text-white/[0.15]"
+            style={{ top: '80%', right: '3%', '--rot': '8deg', animationDelay: '1.5s' } as React.CSSProperties}>Merhaba</span>
+
+          {/* Top scattered */}
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-200/[0.16]"
+            style={{ top: '6%', left: '17%', '--rot': '-3deg', animationDelay: '2s' } as React.CSSProperties}>नमस्ते</span>
+          <span className="lang-float-mid absolute font-bold text-xl text-white/[0.14]"
+            style={{ top: '4%', left: '52%', '--rot': '3deg', animationDelay: '1s' } as React.CSSProperties}>Hallo</span>
+          <span className="lang-float-slow absolute font-bold text-3xl text-indigo-300/[0.18]"
+            style={{ top: '9%', right: '21%', '--rot': '-6deg', animationDelay: '2.8s' } as React.CSSProperties}>שלום</span>
+
+          {/* Bottom scattered */}
+          <span className="lang-float-mid absolute font-bold text-2xl text-white/[0.14]"
+            style={{ bottom: '13%', left: '17%', '--rot': '4deg', animationDelay: '1.6s' } as React.CSSProperties}>Xin chào</span>
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-300/[0.16]"
+            style={{ bottom: '9%', left: '40%', '--rot': '-3deg', animationDelay: '0.7s' } as React.CSSProperties}>Γεια σου</span>
+          <span className="lang-float-slow absolute font-bold text-xl text-white/[0.13]"
+            style={{ bottom: '15%', right: '19%', '--rot': '5deg', animationDelay: '2.3s' } as React.CSSProperties}>Sawubona</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-indigo-200/[0.17]"
+            style={{ bottom: '7%', right: '36%', '--rot': '-4deg', animationDelay: '1.1s' } as React.CSSProperties}>ہیلو</span>
+
+          {/* Mid-field accent words */}
+          <span className="lang-float-slow absolute font-bold text-xl text-blue-200/[0.13]"
+            style={{ top: '35%', left: '13%', '--rot': '2deg', animationDelay: '3.2s' } as React.CSSProperties}>Shalom</span>
+          <span className="lang-float-fast absolute font-bold text-xl text-white/[0.12]"
+            style={{ top: '55%', right: '14%', '--rot': '-2deg', animationDelay: '0.4s' } as React.CSSProperties}>Привіт</span>
+        </div>
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-sm font-medium mb-6 backdrop-blur-sm">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
@@ -128,7 +183,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/translation"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-[#1a1a2e] rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg shadow-black/20">
-              Get an Instant Quote <ArrowRight className="h-4 w-4" />
+              Get a Quote <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/interpretation"
               className="inline-flex items-center gap-2 px-7 py-3.5 border border-white/30 bg-white/5 rounded-xl font-medium hover:bg-white/15 transition-colors backdrop-blur-sm">

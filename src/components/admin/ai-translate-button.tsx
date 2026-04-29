@@ -1,0 +1,37 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Sparkles, Loader2 } from 'lucide-react'
+
+export function AiTranslateButton({ jobId }: { jobId: string }) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleClick() {
+    setLoading(true)
+    setError(null)
+    const res = await fetch(`/api/admin/jobs/${jobId}/ai-translate`, { method: 'POST' })
+    const data = await res.json()
+    setLoading(false)
+    if (!res.ok) {
+      setError(data.error ?? 'AI translation failed')
+    } else {
+      router.refresh()
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <Button variant="outline" size="sm" onClick={handleClick} disabled={loading}>
+        {loading
+          ? <><Loader2 className="h-4 w-4 animate-spin" /> Running AI Translation…</>
+          : <><Sparkles className="h-4 w-4" /> Run AI Translation</>
+        }
+      </Button>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  )
+}

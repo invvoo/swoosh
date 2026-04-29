@@ -25,3 +25,19 @@ body {
     text-wrap: balance;
   }
 }
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot)); }
+  50%       { transform: translateY(-12px) rotate(var(--rot)); }
+}
+@keyframes float-mid {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot)); }
+  50%       { transform: translateY(-8px) rotate(var(--rot)); }
+}
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot)); }
+  50%       { transform: translateY(-5px) rotate(var(--rot)); }
+}
+.lang-float-slow  { animation: float-slow 8s ease-in-out infinite; }
+.lang-float-mid   { animation: float-mid  6s ease-in-out infinite; }
+.lang-float-fast  { animation: float-fast 4s ease-in-out infinite; }
