@@ -13,6 +13,9 @@ interface QuoteData {
   sourceLang: string | null
   targetLang: string | null
   wordCount: number | null
+  baseAmount: number
+  discountAmount: number | null
+  discountLabel: string | null
   amount: number
   expiresAt: string
   acceptedAt: string | null
@@ -212,18 +215,30 @@ export default function QuotePage() {
             <>
               <p className="text-gray-600 text-sm mb-6">Dear {quote.clientName},</p>
 
-              <div className="bg-gray-50 rounded-lg p-5 mb-6">
-                <div className="flex justify-between items-start mb-3">
+              <div className="bg-gray-50 rounded-lg p-5 mb-6 space-y-3">
+                <div className="flex justify-between items-start">
                   <span className="text-gray-600 text-sm">Service</span>
                   <span className="font-medium text-sm capitalize">{serviceLabel}</span>
                 </div>
-                {quote.wordCount && (
-                  <div className="flex justify-between items-start mb-3">
+                {quote.wordCount ? (
+                  <div className="flex justify-between items-start">
                     <span className="text-gray-600 text-sm">Word Count</span>
                     <span className="font-medium text-sm">{quote.wordCount.toLocaleString()} words</span>
                   </div>
+                ) : null}
+                {quote.discountAmount != null && quote.discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600 text-sm">Subtotal</span>
+                      <span className="font-medium text-sm">{formatCurrency(quote.baseAmount)}</span>
+                    </div>
+                    <div className="flex justify-between items-start text-green-700">
+                      <span className="text-sm">{quote.discountLabel || 'Discount'}</span>
+                      <span className="font-medium text-sm">−{formatCurrency(quote.discountAmount)}</span>
+                    </div>
+                  </>
                 )}
-                <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between items-center">
+                <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
                   <span className="font-semibold text-gray-900">Total</span>
                   <span className="text-2xl font-bold text-[#1a1a2e]">{formatCurrency(quote.amount)}</span>
                 </div>

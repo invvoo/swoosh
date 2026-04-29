@@ -19,20 +19,30 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { adjustedAmount, note, wordCount, perWordRate } = z.object({
+  const parsed = z.object({
     adjustedAmount: z.number().positive(),
     note: z.string().optional(),
-    wordCount: z.number().int().positive().optional(),
+    wordCount: z.number().int().min(0).optional(),
     perWordRate: z.number().positive().optional(),
-  }).parse(body)
+    discountAmount: z.number().min(0).optional(),
+    discountLabel: z.string().optional(),
+  }).safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+  const { adjustedAmount, note, wordCount, perWordRate, discountAmount, discountLabel } = parsed.data
 
   const service = createServiceClient()
-  await service.from('jobs').update({
+  const { error } = await service.from('jobs').update({
     quote_adjusted_amount: adjustedAmount,
     employee_notes: note ?? null,
-    ...(wordCount != null ? { word_count: wordCount } : {}),
+    ...(wordCount != null && wordCount > 0 ? { word_count: wordCount } : {}),
     ...(perWordRate != null ? { quote_per_word_rate: perWordRate } : {}),
-  }).eq('id', jobId)
+    ...(discountAmount != null ? { discount_amount: discountAmount } : {}),
+    ...(discountLabel != null ? { discount_label: discountLabel } : {}),
+  } as any).eq('id', jobId)
+  if (error) {
+    console.error('[quote/patch]', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }
 

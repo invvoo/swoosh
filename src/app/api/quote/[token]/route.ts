@@ -41,12 +41,16 @@ export async function GET(_req: NextRequest, { params }: Props) {
   const supabase = createServiceClient()
   const { data: job } = await supabase
     .from('jobs')
-    .select('id, job_type, status, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, quote_rush_days, quote_rush_fee_percent, quote_token_expires_at, quote_accepted_at, invoice_number, clients(contact_name)')
+    .select('id, job_type, status, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, quote_rush_days, quote_rush_fee_percent, quote_token_expires_at, quote_accepted_at, invoice_number, discount_amount, discount_label, clients(contact_name)')
     .eq('id', result.payload.jobId)
     .maybeSingle() as unknown as { data: Record<string, any> | null }
 
   if (!job) return NextResponse.json({ error: 'not_found' }, { status: 404 })
   if (job.status === 'cancelled') return NextResponse.json({ error: 'cancelled' }, { status: 410 })
+
+  const baseAmount = Number(job.quote_adjusted_amount ?? job.quote_amount)
+  const discountAmount = job.discount_amount != null ? Number(job.discount_amount) : 0
+  const finalAmount = Math.max(0, baseAmount - discountAmount)
 
   return NextResponse.json({
     jobId: job.id,
@@ -55,7 +59,10 @@ export async function GET(_req: NextRequest, { params }: Props) {
     sourceLang: job.source_lang,
     targetLang: job.target_lang,
     wordCount: job.word_count,
-    amount: Number(job.quote_adjusted_amount ?? job.quote_amount),
+    baseAmount,
+    discountAmount: discountAmount > 0 ? discountAmount : null,
+    discountLabel: job.discount_label ?? null,
+    amount: finalAmount,
     rushDays: job.quote_rush_days ?? 0,
     rushFeePercent: job.quote_rush_fee_percent ?? 0,
     expiresAt: job.quote_token_expires_at,
