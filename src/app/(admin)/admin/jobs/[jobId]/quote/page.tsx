@@ -68,6 +68,7 @@ export default function QuoteReviewPage() {
   const client = job.clients as any
   const specialty = job.specialty_multipliers as any
   const baseAmount = Number(job.quote_amount)
+  const isTranslation = job.job_type === 'translation'
 
   return (
     <div className="p-8 max-w-2xl">
@@ -79,18 +80,20 @@ export default function QuoteReviewPage() {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Quote Breakdown</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">Quote Details</h2>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between"><dt className="text-gray-500">Client</dt><dd>{client?.contact_name} &lt;{client?.email}&gt;</dd></div>
-          <div className="flex justify-between"><dt className="text-gray-500">Languages</dt><dd>{job.source_lang} → {job.target_lang}</dd></div>
-          <div className="flex justify-between"><dt className="text-gray-500">Specialty</dt><dd>{specialty?.name}</dd></div>
-          <div className="flex justify-between"><dt className="text-gray-500">Word Count</dt><dd>{job.word_count?.toLocaleString()} words</dd></div>
-          <div className="flex justify-between"><dt className="text-gray-500">Rate per Word</dt><dd>${Number(job.quote_per_word_rate).toFixed(4)}</dd></div>
-          <div className="flex justify-between"><dt className="text-gray-500">Multiplier</dt><dd>{Number(job.quote_multiplier).toFixed(2)}×</dd></div>
-          <div className="flex justify-between font-semibold border-t border-gray-100 pt-2">
-            <dt>Calculated Amount</dt>
-            <dd>{formatCurrency(baseAmount)}</dd>
-          </div>
+          {job.source_lang && <div className="flex justify-between"><dt className="text-gray-500">Languages</dt><dd>{job.source_lang} → {job.target_lang}</dd></div>}
+          {isTranslation && specialty && <div className="flex justify-between"><dt className="text-gray-500">Specialty</dt><dd>{specialty?.name}</dd></div>}
+          {isTranslation && job.word_count > 0 && <div className="flex justify-between"><dt className="text-gray-500">Word Count</dt><dd>{job.word_count?.toLocaleString()} words</dd></div>}
+          {isTranslation && job.quote_per_word_rate && <div className="flex justify-between"><dt className="text-gray-500">Rate per Word</dt><dd>${Number(job.quote_per_word_rate).toFixed(4)}</dd></div>}
+          {isTranslation && job.quote_multiplier && <div className="flex justify-between"><dt className="text-gray-500">Multiplier</dt><dd>{Number(job.quote_multiplier).toFixed(2)}×</dd></div>}
+          {baseAmount > 0 && (
+            <div className="flex justify-between font-semibold border-t border-gray-100 pt-2">
+              <dt>Calculated Amount</dt>
+              <dd>{formatCurrency(baseAmount)}</dd>
+            </div>
+          )}
         </dl>
       </div>
 
