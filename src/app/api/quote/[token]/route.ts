@@ -11,6 +11,26 @@ export async function GET(_req: NextRequest, { params }: Props) {
   const result = await verifyTokenWithReason(token)
 
   if (!result.ok) {
+    // On expiry, try to surface client info so the UI can offer a re-request form
+    if (result.reason === 'expired' && result.expiredPayload?.jobId) {
+      const supabase = createServiceClient()
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('id, job_type, source_lang, target_lang, clients(contact_name, email)')
+        .eq('id', result.expiredPayload.jobId)
+        .maybeSingle() as unknown as { data: Record<string, any> | null }
+      if (job) {
+        return NextResponse.json({
+          error: 'expired',
+          jobId: job.id,
+          jobType: job.job_type,
+          sourceLang: job.source_lang,
+          targetLang: job.target_lang,
+          clientName: (job.clients as any)?.contact_name ?? null,
+          clientEmail: (job.clients as any)?.email ?? null,
+        }, { status: 410 })
+      }
+    }
     return NextResponse.json({ error: result.reason }, { status: 410 })
   }
 

@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify, errors as joseErrors } from 'jose'
+import { SignJWT, jwtVerify, decodeJwt, errors as joseErrors } from 'jose'
 
 const secret = new TextEncoder().encode(process.env.TOKEN_SECRET ?? 'missing-secret')
 
@@ -9,7 +9,8 @@ export type TokenPayload = {
 
 export type TokenVerifyResult =
   | { ok: true; payload: TokenPayload }
-  | { ok: false; reason: 'expired' | 'invalid' }
+  | { ok: false; reason: 'expired'; expiredPayload?: TokenPayload }
+  | { ok: false; reason: 'invalid' }
 
 export async function signToken(payload: TokenPayload, expiresIn: string): Promise<string> {
   return new SignJWT({ ...payload })
@@ -26,11 +27,15 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
 
 export async function verifyTokenWithReason(token: string): Promise<TokenVerifyResult> {
   try {
-    const { payload } = await jwtVerify(token, secret)
+    // Allow 60s clock tolerance to handle minor server drift
+    const { payload } = await jwtVerify(token, secret, { clockTolerance: 60 })
     return { ok: true, payload: payload as unknown as TokenPayload }
   } catch (e) {
     if (e instanceof joseErrors.JWTExpired) {
-      return { ok: false, reason: 'expired' }
+      // Signature was valid — decode the payload so callers can identify the job
+      let expiredPayload: TokenPayload | undefined
+      try { expiredPayload = decodeJwt(token) as unknown as TokenPayload } catch { /* ignore */ }
+      return { ok: false, reason: 'expired', expiredPayload }
     }
     return { ok: false, reason: 'invalid' }
   }

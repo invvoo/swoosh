@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils'
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Loader2, Clock } from 'lucide-react'
 
 interface QuoteData {
   jobId: string
@@ -18,19 +19,49 @@ interface QuoteData {
   clientName: string
 }
 
+interface ExpiredData {
+  jobId?: string
+  jobType?: string
+  sourceLang?: string
+  targetLang?: string
+  clientName?: string
+  clientEmail?: string
+}
+
 export default function QuotePage() {
   const { token } = useParams<{ token: string }>()
   const [quote, setQuote] = useState<QuoteData | null>(null)
-  const [error, setError] = useState<'expired' | 'not_found' | 'cancelled' | null>(null)
+  const [errorType, setErrorType] = useState<'expired' | 'not_found' | 'cancelled' | 'invalid' | null>(null)
+  const [expiredData, setExpiredData] = useState<ExpiredData | null>(null)
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
   const [accepted, setAccepted] = useState(false)
+
+  // Re-request state
+  const [reRequestEmail, setReRequestEmail] = useState('')
+  const [reRequestMessage, setReRequestMessage] = useState('')
+  const [reRequestSending, setReRequestSending] = useState(false)
+  const [reRequestSent, setReRequestSent] = useState(false)
 
   useEffect(() => {
     fetch(`/api/quote/${token}`)
       .then(async (r) => {
         const data = await r.json()
-        if (!r.ok) { setError(data.error); return }
+        if (!r.ok) {
+          setErrorType(data.error)
+          if (data.error === 'expired') {
+            setExpiredData({
+              jobId: data.jobId,
+              jobType: data.jobType,
+              sourceLang: data.sourceLang,
+              targetLang: data.targetLang,
+              clientName: data.clientName,
+              clientEmail: data.clientEmail,
+            })
+            if (data.clientEmail) setReRequestEmail(data.clientEmail)
+          }
+          return
+        }
         setQuote(data)
         if (data.acceptedAt) setAccepted(true)
       })
@@ -49,6 +80,22 @@ export default function QuotePage() {
     }
   }
 
+  async function handleReRequest(e: React.FormEvent) {
+    e.preventDefault()
+    setReRequestSending(true)
+    await fetch('/api/quote/request-new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: reRequestEmail,
+        jobId: expiredData?.jobId,
+        message: reRequestMessage || undefined,
+      }),
+    })
+    setReRequestSending(false)
+    setReRequestSent(true)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -57,26 +104,81 @@ export default function QuotePage() {
     )
   }
 
-  if (error) {
-    const isExpired = error === 'expired'
+  if (errorType) {
+    const isExpired = errorType === 'expired'
+    const isCancelled = errorType === 'cancelled'
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-gray-900 mb-2">
-            {isExpired ? 'Quote Expired' : error === 'not_found' ? 'Quote Not Found' : 'Link Invalid'}
-          </h1>
-          <p className="text-gray-500 text-sm mb-6">
+        <div className="max-w-md w-full space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border p-8 text-center">
             {isExpired
-              ? 'This quote link has expired. Please contact us to request a new quote.'
-              : error === 'not_found'
-              ? 'This quote could not be found. It may have been cancelled.'
-              : 'This link is not valid. Please use the link from your quote email, or contact us for a new quote.'}
-          </p>
-          <p className="text-sm text-gray-500">
-            Call us at <a href="tel:2133857781" className="text-blue-600">(213) 385-7781</a> or email{' '}
-            <a href="mailto:info@latranslation.com" className="text-blue-600">info@latranslation.com</a>
-          </p>
+              ? <Clock className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+              : <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+            }
+            <h1 className="text-xl font-bold text-gray-900 mb-2">
+              {isExpired ? 'Quote Expired'
+                : isCancelled ? 'Quote Cancelled'
+                : errorType === 'not_found' ? 'Quote Not Found'
+                : 'Link Not Valid'}
+            </h1>
+            <p className="text-gray-500 text-sm mb-4">
+              {isExpired
+                ? 'This quote link is no longer active. Request a new quote below and our team will follow up promptly.'
+                : isCancelled
+                ? 'This quote has been cancelled. Please contact us if you believe this is an error.'
+                : errorType === 'not_found'
+                ? 'This quote could not be found. It may have been cancelled or the link may be incorrect.'
+                : 'This link is not valid. Please use the link from your quote email, or contact us for a new quote.'}
+            </p>
+            <p className="text-sm text-gray-500">
+              Call <a href="tel:2133857781" className="text-blue-600">(213) 385-7781</a>
+              {' '}or email{' '}
+              <a href="mailto:info@latranslation.com" className="text-blue-600">info@latranslation.com</a>
+            </p>
+          </div>
+
+          {/* Re-request form — shown for expired and invalid */}
+          {(isExpired || errorType === 'invalid') && (
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              {reRequestSent ? (
+                <div className="text-center">
+                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-3" />
+                  <p className="font-medium text-gray-900 text-sm">Request sent.</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Our team will prepare a new quote and email it to you shortly.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <h2 className="font-semibold text-gray-900 mb-1 text-sm">Request a New Quote</h2>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Enter your email and we will send you a fresh quote link.
+                  </p>
+                  <form onSubmit={handleReRequest} className="space-y-3">
+                    <Input
+                      type="email"
+                      required
+                      placeholder="your@email.com"
+                      value={reRequestEmail}
+                      onChange={(e) => setReRequestEmail(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Optional message to our team"
+                      value={reRequestMessage}
+                      onChange={(e) => setReRequestMessage(e.target.value)}
+                      maxLength={500}
+                    />
+                    <Button type="submit" className="w-full" disabled={reRequestSending}>
+                      {reRequestSending
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                        : 'Send Request'}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
