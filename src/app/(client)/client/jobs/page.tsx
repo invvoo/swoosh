@@ -25,7 +25,8 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 interface Job {
   id: string; job_type: string; status: string; source_lang: string | null
   target_lang: string | null; word_count: number | null; quote_amount: number | null
-  quote_adjusted_amount: number | null; invoice_number: string | null
+  quote_adjusted_amount: number | null; discount_amount: number | null
+  display_amount: number; invoice_number: string | null
   created_at: string; scheduled_at: string | null; delivered_at: string | null
 }
 
@@ -103,7 +104,7 @@ export default function ClientJobsPage() {
 
         <div className="space-y-4">
           {jobs.map((job) => {
-            const amount = Number(job.quote_adjusted_amount ?? job.quote_amount ?? 0)
+            const amount = job.display_amount ?? Number(job.quote_adjusted_amount ?? job.quote_amount ?? 0)
             const label = JOB_TYPE_LABELS[job.job_type] ?? job.job_type
             const langLabel = job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : null
             const date = new Date(job.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
