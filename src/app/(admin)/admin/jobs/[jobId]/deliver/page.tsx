@@ -36,7 +36,7 @@ export default function DeliverPage() {
         <Link href={`/admin/jobs/${jobId}`} className="text-gray-400 hover:text-gray-600">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-xl font-bold text-[#1a1a2e]">Upload &amp; Deliver Translation</h1>
+        <h1 className="text-xl font-bold text-[#1a1a2e]">Upload &amp; Deliver to Client</h1>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-6">
