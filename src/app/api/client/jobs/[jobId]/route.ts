@@ -39,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
   return NextResponse.json({
     job: {
-      ...job,
+      ...(job as any),
       discount_amount: discountRow?.discount_amount ?? null,
       discount_label: discountRow?.discount_label ?? null,
     },
