@@ -30,8 +30,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 }
 
 // POST — send quote to client
-export async function POST(_req: NextRequest, { params }: Props) {
+export async function POST(req: NextRequest, { params }: Props) {
   const { jobId } = await params
+  const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-proto')?.split(',')[0].trim() + '://' + req.headers.get('host')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -66,13 +67,14 @@ export async function POST(_req: NextRequest, { params }: Props) {
       changed_by: user.id,
     })
 
+    const baseUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
     const html = await renderAsync(QuoteReadyEmail({
       clientName: client.contact_name,
       jobType: job.job_type,
       sourceLang: job.source_lang ?? undefined,
       targetLang: job.target_lang ?? undefined,
       quoteAmount: amount,
-      quoteToken: token,
+      quoteUrl: `${baseUrl}/quote/${token}`,
       expiresAt: format(expiresAt, 'MMMM d, yyyy'),
     }))
 

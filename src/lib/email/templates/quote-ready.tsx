@@ -8,7 +8,7 @@ interface QuoteReadyEmailProps {
   sourceLang?: string
   targetLang?: string
   quoteAmount: number
-  quoteToken: string
+  quoteUrl: string
   expiresAt: string
 }
 
@@ -18,10 +18,9 @@ export function QuoteReadyEmail({
   sourceLang,
   targetLang,
   quoteAmount,
-  quoteToken,
+  quoteUrl,
   expiresAt,
 }: QuoteReadyEmailProps) {
-  const quoteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/quote/${quoteToken}`
   const serviceLabel = sourceLang && targetLang
     ? `${sourceLang} → ${targetLang} ${jobType}`
     : jobType

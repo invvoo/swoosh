@@ -10,9 +10,9 @@ const schema = z.object({
 })
 
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? ''
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? (process.env.NEXT_PUBLIC_APP_URL ?? '')
   const body = await req.json().catch(() => null)
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 422 })
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         ? `${job.source_lang} → ${job.target_lang} (${job.job_type})`
         : job.job_type
       const clientName = (job.clients as any)?.contact_name ?? ''
-      const adminLink = `${APP_URL}/admin/jobs/${job.id}`
+      const adminLink = `${origin}/admin/jobs/${job.id}`
       jobContext = `
         <p><strong>Job:</strong> <a href="${adminLink}">${adminLink}</a></p>
         <p><strong>Service:</strong> ${label}</p>
