@@ -171,19 +171,6 @@ export default async function JobDetailPage({ params }: Props) {
             {(job as any).notary_address && <div className="flex gap-2"><dt className="text-gray-500 w-24">Address</dt><dd>{(job as any).notary_address}</dd></div>}
             {(job as any).notary_signature_count && <div className="flex gap-2"><dt className="text-gray-500 w-24">Signatures</dt><dd>{(job as any).notary_signature_count}</dd></div>}
             {(job as any).appointment_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Appointment</dt><dd>{formatDateTime((job as any).appointment_at)}</dd></div>}
-            {(job as any).mailing_option && (() => {
-              const labels: Record<string, string> = { standard: 'Standard Mail', hard_copy: 'Hard Copy + Certification & Notary' }
-              return (
-                <div className="flex gap-2">
-                  <dt className="text-gray-500 w-24">Mailing</dt>
-                  <dd className="flex items-center gap-2">
-                    {labels[(job as any).mailing_option] ?? (job as any).mailing_option}
-                    {(job as any).mailing_fedex_overnight && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">FedEx Overnight</span>}
-                    {(job as any).mailing_amount && <span className="text-gray-500 text-xs">({formatCurrency(Number((job as any).mailing_amount))})</span>}
-                  </dd>
-                </div>
-              )
-            })()}
             {(job as any).dispatch_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Dispatched</dt><dd>{formatDateTime((job as any).dispatch_at)}</dd></div>}
             {(job as any).return_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Returned</dt><dd>{formatDateTime((job as any).return_at)}</dd></div>}
             {(job as any).rental_items && Array.isArray((job as any).rental_items) && (job as any).rental_items.length > 0 && (
@@ -216,7 +203,52 @@ export default async function JobDetailPage({ params }: Props) {
                 <dd>{Math.floor((job as any).media_duration_seconds / 60)}m {(job as any).media_duration_seconds % 60}s</dd>
               </div>
             )}
-            {displayAmount && <div className="flex gap-2"><dt className="text-gray-500 w-24">Amount</dt><dd className="font-semibold">{formatCurrency(Number(displayAmount))}</dd></div>}
+            {/* Rate breakdown */}
+            {(job as any).quote_per_word_rate != null && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Rate</dt>
+                <dd>
+                  ${Number((job as any).quote_per_word_rate).toFixed(4)}/word
+                  {(job as any).quote_multiplier != null && Number((job as any).quote_multiplier) !== 1
+                    ? ` × ${Number((job as any).quote_multiplier).toFixed(2)} (specialty)`
+                    : ''}
+                  {(job as any).quote_is_pivot ? <span className="text-xs text-amber-600 ml-1">(pivot via English)</span> : null}
+                </dd>
+              </div>
+            )}
+            {(job as any).quote_rush_days > 0 && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Rush Fee</dt>
+                <dd>
+                  {(job as any).quote_rush_days}d rushed · {(job as any).quote_rush_fee_percent}%
+                  {(job as any).quote_rush_amount != null ? ` = +${formatCurrency(Number((job as any).quote_rush_amount))}` : ''}
+                </dd>
+              </div>
+            )}
+            {(job as any).mailing_option && (() => {
+              const labels: Record<string, string> = { standard: 'Standard Mail', hard_copy: 'Hard Copy + Notary' }
+              return (
+                <div className="flex gap-2">
+                  <dt className="text-gray-500 w-24">Mailing</dt>
+                  <dd className="flex items-center gap-2">
+                    {labels[(job as any).mailing_option] ?? (job as any).mailing_option}
+                    {(job as any).mailing_fedex_overnight && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">FedEx Overnight</span>}
+                    {(job as any).mailing_amount != null ? ` +${formatCurrency(Number((job as any).mailing_amount))}` : ''}
+                  </dd>
+                </div>
+              )
+            })()}
+            {displayAmount && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Quote</dt>
+                <dd className="font-semibold text-[#1a1a2e]">
+                  {formatCurrency(Number(displayAmount))}
+                  {job.quote_adjusted_amount && job.quote_amount && job.quote_adjusted_amount !== job.quote_amount && (
+                    <span className="text-xs text-gray-400 ml-1.5 font-normal line-through">{formatCurrency(Number(job.quote_amount))}</span>
+                  )}
+                </dd>
+              </div>
+            )}
             {job.invoice_number && <div className="flex gap-2"><dt className="text-gray-500 w-24">Invoice #</dt><dd>{job.invoice_number}</dd></div>}
           </dl>
           {(job as any).missing_pricing_warning && (

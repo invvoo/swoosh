@@ -10,18 +10,32 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   interpretation: 'Interpretation',
   equipment_rental: 'Equipment Rental',
   notary: 'Notary / Apostille',
+  transcription: 'Transcription / Subtitling',
 }
 
 export async function notifyAdminNewInquiry(props: Omit<NewInquiryEmailProps, 'adminUrl'>) {
-  if (!ADMIN_EMAIL) return
+  if (!ADMIN_EMAIL) {
+    console.warn('[notify-admin] ADMIN_NOTIFY_EMAIL is not set — skipping admin notification')
+    return
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[notify-admin] RESEND_API_KEY is not set — skipping admin notification')
+    return
+  }
 
   const html = await render(NewInquiryEmail({ ...props, adminUrl: ADMIN_URL }))
   const typeLabel = JOB_TYPE_LABELS[props.jobType] ?? props.jobType
 
-  await getResend().emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM_EMAIL,
     to: ADMIN_EMAIL,
     subject: `New ${typeLabel} Inquiry — ${props.clientName}`,
     html,
   })
+
+  if (error) {
+    console.error('[notify-admin] Resend error:', JSON.stringify(error))
+    throw error
+  }
+  console.log('[notify-admin] Sent to', ADMIN_EMAIL, 'id:', data?.id)
 }

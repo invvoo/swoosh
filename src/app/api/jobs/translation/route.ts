@@ -384,6 +384,10 @@ async function sendAutoQuoteEmail(params: {
   clientName: string; clientEmail: string; sourceLang: string; targetLang: string
   certificationTpe: string; wordCount: number; estimatedAmount: number; hasMissingPricing: boolean
 }) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[translation] RESEND_API_KEY not set — skipping client auto-quote email')
+    return
+  }
   const html = await render(AutoQuoteEstimateEmail({
     clientName: params.clientName, jobType: 'translation',
     sourceLang: params.sourceLang, targetLang: params.targetLang,
@@ -391,12 +395,16 @@ async function sendAutoQuoteEmail(params: {
     wordCount: params.wordCount, estimatedAmount: params.estimatedAmount,
     hasMissingPricing: params.hasMissingPricing,
   }))
-  const { error } = await getResend().emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM_EMAIL, to: params.clientEmail,
     subject: params.hasMissingPricing
       ? 'We Received Your Translation Request — LA Translation'
       : `Translation Estimate: $${params.estimatedAmount.toFixed(2)} — LA Translation`,
     html,
   })
-  if (error) console.error('[translation] Resend error:', error)
+  if (error) {
+    console.error('[translation] Resend client email error:', JSON.stringify(error))
+    throw error
+  }
+  console.log('[translation] Client email sent to', params.clientEmail, 'id:', data?.id)
 }
