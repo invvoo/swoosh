@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, FileText, User, Clock, AlertTriangle } from 'lucide-react'
+import { StatusActions } from '@/components/admin/status-actions'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -56,6 +57,7 @@ export default async function JobDetailPage({ params }: Props) {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
+        <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
         {['draft', 'quote_sent', 'quote_accepted', 'paid', 'ai_review_pending'].includes(job.status) && job.job_type === 'translation' && (
           <Link href={`/admin/jobs/${jobId}/quote`}>
             <Button variant="outline" size="sm">Review / Send Quote</Button>
@@ -145,7 +147,23 @@ export default async function JobDetailPage({ params }: Props) {
               </div>
             )}
             {job.rental_start_date && <div className="flex gap-2"><dt className="text-gray-500 w-24">Rental</dt><dd>{job.rental_start_date} – {job.rental_end_date}</dd></div>}
-            {job.notary_service_type && <div className="flex gap-2"><dt className="text-gray-500 w-24">Service</dt><dd className="capitalize">{job.notary_service_type}</dd></div>}
+            {job.notary_service_type && <div className="flex gap-2"><dt className="text-gray-500 w-24">Service</dt><dd className="capitalize">{(job.notary_service_type as string).replace(/_/g, ' ')}</dd></div>}
+            {(job as any).delivery_method && <div className="flex gap-2"><dt className="text-gray-500 w-24">Delivery</dt><dd className="capitalize">{(job as any).delivery_method.replace(/_/g, ' ')}</dd></div>}
+            {(job as any).notary_address && <div className="flex gap-2"><dt className="text-gray-500 w-24">Address</dt><dd>{(job as any).notary_address}</dd></div>}
+            {(job as any).notary_signature_count && <div className="flex gap-2"><dt className="text-gray-500 w-24">Signatures</dt><dd>{(job as any).notary_signature_count}</dd></div>}
+            {(job as any).appointment_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Appointment</dt><dd>{formatDateTime((job as any).appointment_at)}</dd></div>}
+            {(job as any).dispatch_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Dispatched</dt><dd>{formatDateTime((job as any).dispatch_at)}</dd></div>}
+            {(job as any).return_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Returned</dt><dd>{formatDateTime((job as any).return_at)}</dd></div>}
+            {(job as any).rental_items && Array.isArray((job as any).rental_items) && (job as any).rental_items.length > 0 && (
+              <div className="flex gap-2 col-span-2">
+                <dt className="text-gray-500 w-24 shrink-0">Items</dt>
+                <dd className="space-y-0.5">
+                  {(job as any).rental_items.map((item: any, i: number) => (
+                    <div key={i}>{item.qty}× {item.name} @ {formatCurrency(item.ratePerDay)}/day</div>
+                  ))}
+                </dd>
+              </div>
+            )}
             {displayAmount && <div className="flex gap-2"><dt className="text-gray-500 w-24">Amount</dt><dd className="font-semibold">{formatCurrency(Number(displayAmount))}</dd></div>}
             {job.invoice_number && <div className="flex gap-2"><dt className="text-gray-500 w-24">Invoice #</dt><dd>{job.invoice_number}</dd></div>}
           </dl>
