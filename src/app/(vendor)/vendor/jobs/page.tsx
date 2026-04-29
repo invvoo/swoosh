@@ -36,6 +36,10 @@ export default function VendorJobsPage() {
       .then(async (r) => {
         const d = await r.json()
         if (!r.ok) {
+          if (d.error === 'no_account') {
+            router.replace('/vendor/signup')
+            return
+          }
           setErrorCode(d.error ?? null)
           setError(d.message ?? 'Failed to load')
           return
@@ -44,7 +48,7 @@ export default function VendorJobsPage() {
         setTranslatorName(d.translator?.full_name ?? '')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   async function handleSignOut() {
     const supabase = createClient()
