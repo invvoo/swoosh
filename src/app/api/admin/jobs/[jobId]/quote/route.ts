@@ -31,14 +31,24 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const { adjustedAmount, note, wordCount, perWordRate, discountAmount, discountLabel } = parsed.data
 
   const service = createServiceClient()
-  const { error } = await service.from('jobs').update({
+
+  const updatePayload: Record<string, unknown> = {
     quote_adjusted_amount: adjustedAmount,
     employee_notes: note ?? null,
     ...(wordCount != null && wordCount > 0 ? { word_count: wordCount } : {}),
     ...(perWordRate != null ? { quote_per_word_rate: perWordRate } : {}),
     ...(discountAmount != null ? { discount_amount: discountAmount } : {}),
     ...(discountLabel != null ? { discount_label: discountLabel } : {}),
-  } as any).eq('id', jobId)
+  }
+
+  let { error } = await service.from('jobs').update(updatePayload as any).eq('id', jobId)
+
+  // If discount columns don't exist yet (migration 0015 pending), retry without them
+  if (error?.message?.includes('discount_')) {
+    const { discount_amount: _da, discount_label: _dl, ...withoutDiscount } = updatePayload
+    ;({ error } = await service.from('jobs').update(withoutDiscount as any).eq('id', jobId))
+  }
+
   if (error) {
     console.error('[quote/patch]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
