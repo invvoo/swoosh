@@ -76,14 +76,18 @@ export default function ClientJobDetailPage() {
   async function handleAcceptQuote() {
     setAccepting(true)
     setAcceptError(null)
-    const res = await fetch(`/api/client/jobs/${jobId}/accept`, { method: 'POST' })
-    const data = await res.json()
-    if (res.ok && data.checkoutUrl) {
-      window.location.href = data.checkoutUrl
-    } else {
-      setAcceptError(data.error ?? 'Something went wrong. Please try again or call us.')
-      setAccepting(false)
+    try {
+      const res = await fetch(`/api/client/jobs/${jobId}/accept`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
+      setAcceptError(data.error ?? 'Something went wrong. Please try again or call (213) 385-7781.')
+    } catch {
+      setAcceptError('Network error. Please try again or call (213) 385-7781.')
     }
+    setAccepting(false)
   }
 
   if (loading) return (
