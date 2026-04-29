@@ -29,5 +29,19 @@ export async function GET(_req: NextRequest, { params }: Props) {
     .single()
 
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ job })
+
+  // Fetch discount separately so it works regardless of whether types are regenerated
+  const { data: discountRow } = await service
+    .from('jobs')
+    .select('discount_amount, discount_label')
+    .eq('id', jobId)
+    .single() as any
+
+  return NextResponse.json({
+    job: {
+      ...job,
+      discount_amount: discountRow?.discount_amount ?? null,
+      discount_label: discountRow?.discount_label ?? null,
+    },
+  })
 }

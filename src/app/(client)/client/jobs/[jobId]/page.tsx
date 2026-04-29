@@ -37,6 +37,8 @@ interface JobDetail {
   document_name: string | null
   delivery_token: string | null
   missing_pricing_warning: string | null
+  discount_amount: number | null
+  discount_label: string | null
 }
 
 const CERT_LABELS: Record<string, string> = {
@@ -105,7 +107,9 @@ export default function ClientJobDetailPage() {
     </div>
   )
 
-  const displayAmount = Number(job.quote_adjusted_amount ?? job.quote_amount ?? 0)
+  const baseAmount = Number(job.quote_adjusted_amount ?? job.quote_amount ?? 0)
+  const discountAmount = job.discount_amount != null ? Number(job.discount_amount) : 0
+  const displayAmount = Math.max(0, baseAmount - discountAmount)
   const langLabel = job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : null
   const reference = job.invoice_number ?? job.id.slice(0, 8).toUpperCase()
   const isQuotePending = job.status === 'quote_sent'
@@ -192,6 +196,18 @@ export default function ClientJobDetailPage() {
                     </span>
                     {job.mailing_amount ? <span>+{formatCurrency(Number(job.mailing_amount))}</span> : null}
                   </div>
+                )}
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-gray-700 text-sm">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(baseAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-700 text-sm">
+                      <span>{job.discount_label || 'Discount'}</span>
+                      <span>−{formatCurrency(discountAmount)}</span>
+                    </div>
+                  </>
                 )}
                 <div className="flex justify-between font-bold text-[#1a1a2e] border-t border-gray-100 pt-2 mt-1">
                   <span>Total</span>
