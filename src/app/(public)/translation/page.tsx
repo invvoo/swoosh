@@ -196,7 +196,7 @@ export default function TranslationRequestPage() {
     const data = await res.json()
 
     if (!res.ok) {
-      setError(data.error?.formErrors?.[0] ?? data.error ?? 'Something went wrong. Please try again or call us.')
+      setError(data.error?.formErrors?.[0] ?? (data.detail ? `${data.error}: ${data.detail}` : data.error) ?? 'Something went wrong. Please try again or call us.')
       setSubmitting(false)
     } else {
       setSuccessData({ wordCount: data.wordCount, estimatedQuote: data.estimatedQuote, missingPricing: data.missingPricing })

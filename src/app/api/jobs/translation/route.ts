@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
     .single()
   if (jobError || !job) {
     console.error('[translation] Job insert error:', jobError)
-    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create job', detail: jobError?.message ?? null }, { status: 500 })
   }
 
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
