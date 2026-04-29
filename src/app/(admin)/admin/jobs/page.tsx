@@ -63,6 +63,7 @@ export default async function JobsPage({ searchParams }: Props) {
           { label: 'Interpretation', href: '/admin/jobs?type=interpretation', key: 'interpretation' },
           { label: 'Equipment Rental', href: '/admin/jobs?type=equipment_rental', key: 'equipment_rental' },
           { label: 'Notary', href: '/admin/jobs?type=notary', key: 'notary' },
+          { label: 'Transcription', href: '/admin/jobs?type=transcription', key: 'transcription' },
           { label: 'Archived', href: '/admin/jobs?status=archived', key: 'archived' },
         ].map((f) => {
           const isActive =

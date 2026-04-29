@@ -183,6 +183,26 @@ export default async function JobDetailPage({ params }: Props) {
                 </dd>
               </div>
             )}
+            {(job as any).media_name && (
+              <div className="flex gap-2 items-center">
+                <dt className="text-gray-500 w-24">Media File</dt>
+                <dd className="flex items-center gap-2">
+                  <span className="truncate max-w-[200px]">{(job as any).media_name}</span>
+                  <a href={`/api/admin/jobs/${jobId}/document?type=media`} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 text-xs hover:underline">Download</a>
+                </dd>
+              </div>
+            )}
+            {(job as any).transcription_service_type && (
+              <div className="flex gap-2"><dt className="text-gray-500 w-24">Service</dt>
+                <dd className="capitalize">{(job as any).transcription_service_type === 'both' ? 'Transcription + Subtitles' : (job as any).transcription_service_type}</dd>
+              </div>
+            )}
+            {(job as any).media_duration_seconds && (
+              <div className="flex gap-2"><dt className="text-gray-500 w-24">Duration</dt>
+                <dd>{Math.floor((job as any).media_duration_seconds / 60)}m {(job as any).media_duration_seconds % 60}s</dd>
+              </div>
+            )}
             {displayAmount && <div className="flex gap-2"><dt className="text-gray-500 w-24">Amount</dt><dd className="font-semibold">{formatCurrency(Number(displayAmount))}</dd></div>}
             {job.invoice_number && <div className="flex gap-2"><dt className="text-gray-500 w-24">Invoice #</dt><dd>{job.invoice_number}</dd></div>}
           </dl>

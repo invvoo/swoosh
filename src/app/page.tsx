@@ -113,6 +113,31 @@ export default function HomePage() {
           <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl" />
         </div>
+
+        {/* Floating language words — subtle background typography */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden>
+          {/* Left column */}
+          <span className="absolute text-white/[0.06] font-bold text-3xl" style={{ top: '8%',  left: '3%',  transform: 'rotate(-8deg)' }}>Hola</span>
+          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '25%', left: '1%',  transform: 'rotate(5deg)' }}>こんにちは</span>
+          <span className="absolute text-white/[0.07] font-bold text-xl" style={{ top: '45%', left: '4%',  transform: 'rotate(-4deg)' }}>Bonjour</span>
+          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '65%', left: '2%',  transform: 'rotate(7deg)' }}>مرحبا</span>
+          <span className="absolute text-white/[0.06] font-bold text-lg" style={{ top: '82%', left: '5%',  transform: 'rotate(-3deg)' }}>Ciao</span>
+          {/* Right column */}
+          <span className="absolute text-white/[0.06] font-bold text-3xl" style={{ top: '6%',  right: '4%', transform: 'rotate(6deg)' }}>你好</span>
+          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '22%', right: '2%', transform: 'rotate(-7deg)' }}>Привет</span>
+          <span className="absolute text-white/[0.07] font-bold text-xl" style={{ top: '42%', right: '3%', transform: 'rotate(4deg)' }}>안녕하세요</span>
+          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '60%', right: '5%', transform: 'rotate(-5deg)' }}>Olá</span>
+          <span className="absolute text-white/[0.06] font-bold text-lg" style={{ top: '78%', right: '2%', transform: 'rotate(8deg)' }}>Merhaba</span>
+          {/* Top scattered */}
+          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ top: '5%',  left: '18%', transform: 'rotate(-2deg)' }}>नमस्ते</span>
+          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ top: '3%',  left: '55%', transform: 'rotate(3deg)' }}>Hallo</span>
+          <span className="absolute text-white/[0.04] font-bold text-2xl" style={{ top: '10%', right: '22%',transform: 'rotate(-6deg)' }}>שלום</span>
+          {/* Bottom scattered */}
+          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ bottom: '12%', left: '18%', transform: 'rotate(4deg)' }}>Xin chào</span>
+          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ bottom: '8%',  left: '42%', transform: 'rotate(-3deg)' }}>Γεια σου</span>
+          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ bottom: '14%', right: '20%', transform: 'rotate(5deg)' }}>Sawubona</span>
+          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ bottom: '6%',  right: '38%', transform: 'rotate(-4deg)' }}>ہیلو</span>
+        </div>
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-sm font-medium mb-6 backdrop-blur-sm">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />

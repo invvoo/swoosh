@@ -21,18 +21,36 @@ const CERT_LABEL: Record<string, string> = {
   court: 'Court Certified',
 }
 
-const schema = z.object({
+// JSON schema (new form — pre-uploaded files)
+const jsonSchema = z.object({
   clientName: z.string().min(1),
   clientEmail: z.string().email(),
   clientPhone: z.string().optional(),
   clientCompany: z.string().optional(),
   sourceLang: z.string().min(1).optional(),
   targetLang: z.string().min(1),
-  // New: certification type (public form)
   certificationTpe: z.enum(['none', 'general', 'court']).optional(),
-  // Legacy: specialty UUID (admin manual-entry form, backward compat)
   specialtyId: z.string().uuid().optional(),
-  // Language detection metadata from client
+  detectedSourceLang: z.string().optional(),
+  detectedSourceLangConfidence: z.coerce.number().min(0).max(1).optional(),
+  requestedDeliveryDays: z.coerce.number().int().min(1).max(30).optional(),
+  // New: array of pre-uploaded Storage paths
+  storagePaths: z.array(z.object({ path: z.string().min(1), name: z.string().min(1) })).min(1),
+}).refine(
+  (d) => d.sourceLang || d.detectedSourceLang,
+  { message: 'sourceLang or detectedSourceLang is required' },
+)
+
+// FormData schema (admin manual-entry — single file upload through server)
+const formDataSchema = z.object({
+  clientName: z.string().min(1),
+  clientEmail: z.string().email(),
+  clientPhone: z.string().optional(),
+  clientCompany: z.string().optional(),
+  sourceLang: z.string().min(1).optional(),
+  targetLang: z.string().min(1),
+  certificationTpe: z.enum(['none', 'general', 'court']).optional(),
+  specialtyId: z.string().uuid().optional(),
   detectedSourceLang: z.string().optional(),
   detectedSourceLangConfidence: z.coerce.number().min(0).max(1).optional(),
   requestedDeliveryDays: z.coerce.number().int().min(1).max(30).optional(),
@@ -42,11 +60,71 @@ const schema = z.object({
 )
 
 export async function POST(req: NextRequest) {
+  const contentType = req.headers.get('content-type') ?? ''
+  const isJson = contentType.includes('application/json')
+
+  if (isJson) {
+    return handleJson(req)
+  } else {
+    return handleFormData(req)
+  }
+}
+
+// ── JSON handler (new form with direct uploads) ───────────────────────────────
+
+async function handleJson(req: NextRequest) {
+  const body = await req.json().catch(() => null)
+  const parsed = jsonSchema.safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+
+  const {
+    clientName, clientEmail, clientPhone, clientCompany,
+    targetLang, certificationTpe, specialtyId,
+    detectedSourceLang, detectedSourceLangConfidence,
+    requestedDeliveryDays, storagePaths,
+  } = parsed.data
+
+  const effectiveSourceLang = parsed.data.sourceLang || detectedSourceLang!
+  const supabase = createServiceClient()
+
+  // Download all files from Storage and count words (with timeout per file)
+  const wordCounts = await Promise.all(
+    storagePaths.map(async ({ path, name }) => {
+      try {
+        const { data, error } = await supabase.storage.from('job-documents').download(path)
+        if (error || !data) return 0
+        const buffer = Buffer.from(await data.arrayBuffer())
+        return await Promise.race<number>([
+          extractWordCount(buffer, name).catch(() => 0),
+          new Promise<number>((resolve) => setTimeout(() => resolve(0), 20000)),
+        ])
+      } catch {
+        return 0
+      }
+    })
+  )
+  const wordCount = wordCounts.reduce((a, b) => a + b, 0)
+
+  return buildAndCreateJob({
+    supabase, effectiveSourceLang, targetLang,
+    certificationTpe, specialtyId,
+    detectedSourceLang, detectedSourceLangConfidence,
+    requestedDeliveryDays, wordCount,
+    primaryPath: storagePaths[0].path,
+    primaryName: storagePaths[0].name,
+    allPaths: storagePaths,
+    clientName, clientEmail, clientPhone, clientCompany,
+  })
+}
+
+// ── FormData handler (admin manual-entry, single file through server) ─────────
+
+async function handleFormData(req: NextRequest) {
   const formData = await req.formData()
   const file = formData.get('document') as File | null
   if (!file) return NextResponse.json({ error: 'Document is required' }, { status: 400 })
 
-  const parsed = schema.safeParse({
+  const parsed = formDataSchema.safeParse({
     clientName: formData.get('clientName'),
     clientEmail: formData.get('clientEmail'),
     clientPhone: formData.get('clientPhone') || undefined,
@@ -72,43 +150,87 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  // Word count extraction can time out on large PDFs — proceed without it if so
   const wordCountOrNull = await Promise.race<number | null>([
     extractWordCount(buffer, file.name).catch(() => null),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
   ])
   const wordCount = wordCountOrNull ?? 0
 
+  // Upload document
+  const jobId = crypto.randomUUID()
+  const storagePath = `documents/raw/${jobId}/${file.name}`
+  const { error: uploadError } = await supabase.storage
+    .from('job-documents')
+    .upload(storagePath, buffer, { contentType: file.type, upsert: false })
+  if (uploadError) {
+    console.error('[translation] Storage upload error:', uploadError)
+    return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 })
+  }
+
+  return buildAndCreateJob({
+    supabase, effectiveSourceLang, targetLang,
+    certificationTpe, specialtyId,
+    detectedSourceLang, detectedSourceLangConfidence,
+    requestedDeliveryDays, wordCount,
+    primaryPath: storagePath,
+    primaryName: file.name,
+    allPaths: [{ path: storagePath, name: file.name }],
+    clientName, clientEmail, clientPhone, clientCompany,
+    preAssignedJobId: jobId,
+  })
+}
+
+// ── Shared job creation logic ─────────────────────────────────────────────────
+
+async function buildAndCreateJob(params: {
+  supabase: ReturnType<typeof createServiceClient>
+  effectiveSourceLang: string
+  targetLang: string
+  certificationTpe?: string
+  specialtyId?: string
+  detectedSourceLang?: string
+  detectedSourceLangConfidence?: number
+  requestedDeliveryDays?: number
+  wordCount: number
+  primaryPath: string
+  primaryName: string
+  allPaths: { path: string; name: string }[]
+  clientName: string
+  clientEmail: string
+  clientPhone?: string
+  clientCompany?: string
+  preAssignedJobId?: string
+}) {
+  const {
+    supabase, effectiveSourceLang, targetLang,
+    certificationTpe, specialtyId,
+    detectedSourceLang, detectedSourceLangConfidence,
+    requestedDeliveryDays, wordCount,
+    primaryPath, primaryName, allPaths,
+    clientName, clientEmail, clientPhone, clientCompany,
+    preAssignedJobId,
+  } = params
+
   const [specialtyRow, settingsResult] = await Promise.all([
     resolveSpecialty(supabase, certificationTpe, specialtyId),
     supabase.from('system_settings').select('key, value').in('key', [
-      'translation_minimum_standard',
-      'translation_minimum_certified',
-      'translation_minimum_court',
-      'translation_minimum_court_premium',
+      'translation_minimum_standard','translation_minimum_certified',
+      'translation_minimum_court','translation_minimum_court_premium',
       'translation_court_premium_langs',
     ]),
   ])
 
-  const settingsMap = Object.fromEntries(
-    (settingsResult.data ?? []).map((s) => [s.key, Number(s.value)])
-  )
-
+  const settingsMap = Object.fromEntries((settingsResult.data ?? []).map((s) => [s.key, Number(s.value)]))
   const pricing = await resolveTranslationRate(effectiveSourceLang, targetLang, supabase)
 
   const certForMinimum = certificationTpe
-    ?? (specialtyRow.name === 'Certified (USCIS)' ? 'general'
-      : specialtyRow.name === 'Court Certified' ? 'court'
-        : 'none')
+    ?? (specialtyRow.name === 'Certified (USCIS)' ? 'general' : specialtyRow.name === 'Court Certified' ? 'court' : 'none')
   const minimum = resolveCertMinimum(certForMinimum, effectiveSourceLang, targetLang, settingsMap)
 
-  // No auto-quote if word count couldn't be extracted or pricing is missing
-  const certKey = (certForMinimum as 'court' | 'general' | 'none')
+  const certKey = certForMinimum as 'court' | 'general' | 'none'
   const standardDays = wordCount > 0 ? calcTurnaroundDays(wordCount, certKey) : null
 
-  let rushDays = 0
-  let rushFeePercent = 0
-  let rushAmount = 0
+  let rushDays = 0, rushFeePercent = 0, rushAmount = 0
   if (requestedDeliveryDays !== undefined && standardDays !== null && requestedDeliveryDays < standardDays) {
     const rush = calculateRushFee(0, standardDays - requestedDeliveryDays)
     rushDays = rush.rushDays
@@ -127,17 +249,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Upload document
-  const jobId = crypto.randomUUID()
-  const storagePath = `documents/raw/${jobId}/${file.name}`
-  const { error: uploadError } = await supabase.storage
-    .from('job-documents')
-    .upload(storagePath, buffer, { contentType: file.type, upsert: false })
-  if (uploadError) {
-    console.error('[translation] Storage upload error:', uploadError)
-    return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 })
-  }
-
   // Upsert client
   const { data: client, error: clientError } = await supabase
     .from('clients')
@@ -149,7 +260,8 @@ export async function POST(req: NextRequest) {
     .single()
   if (clientError || !client) return NextResponse.json({ error: 'Failed to create client record' }, { status: 500 })
 
-  // Create job
+  const jobId = preAssignedJobId ?? crypto.randomUUID()
+
   const { data: job, error: jobError } = await supabase
     .from('jobs')
     .insert({
@@ -161,8 +273,9 @@ export async function POST(req: NextRequest) {
       target_lang: targetLang,
       specialty_id: specialtyRow.id ?? null,
       word_count: wordCount,
-      document_path: storagePath,
-      document_name: file.name,
+      document_path: primaryPath,
+      document_name: primaryName,
+      document_paths: allPaths.length > 1 ? allPaths : null,
       quote_per_word_rate: pricing.perWordRate ?? null,
       quote_multiplier: specialtyRow.multiplier ?? null,
       quote_amount: quoteAmount,
@@ -181,6 +294,7 @@ export async function POST(req: NextRequest) {
     } as any)
     .select('id')
     .single()
+
   if (jobError || !job) {
     console.error('[translation] Job insert error:', jobError)
     return NextResponse.json({ error: 'Failed to create job', detail: jobError?.message ?? null }, { status: 500 })
@@ -188,7 +302,6 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
 
-  // Fire-and-forget emails (client auto-quote + admin notification)
   sendAutoQuoteEmail({
     clientName, clientEmail, sourceLang: effectiveSourceLang, targetLang,
     certificationTpe: certificationTpe ?? 'none',
@@ -197,25 +310,13 @@ export async function POST(req: NextRequest) {
   }).catch((err) => console.error('[translation] Auto-quote email error:', err))
 
   notifyAdminNewInquiry({
-    jobType: 'translation',
-    jobId: job.id,
-    clientName,
-    clientEmail,
-    sourceLang: effectiveSourceLang,
-    targetLang,
-    wordCount,
+    jobType: 'translation', jobId: job.id, clientName, clientEmail,
+    sourceLang: effectiveSourceLang, targetLang, wordCount,
     certificationLabel: CERT_LABEL[certificationTpe ?? 'none'],
-    estimatedAmount: quoteAmount ?? 0,
-    missingPricing: pricing.warning,
+    estimatedAmount: quoteAmount ?? 0, missingPricing: pricing.warning,
   }).catch((err) => console.error('[translation] Admin notify error:', err))
 
-  return NextResponse.json({
-    jobId: job.id,
-    wordCount,
-    estimatedQuote: quoteAmount,
-    missingPricing: pricing.warning,
-    isPivot: pricing.isPivot,
-  })
+  return NextResponse.json({ jobId: job.id, wordCount, estimatedQuote: quoteAmount, missingPricing: pricing.warning, isPivot: pricing.isPivot })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -226,20 +327,12 @@ async function resolveSpecialty(
   specialtyId: string | undefined,
 ): Promise<{ id: string | null; name: string | null; multiplier: number | null }> {
   if (certificationTpe) {
-    const { data } = await supabase
-      .from('specialty_multipliers')
-      .select('id, name, multiplier')
-      .eq('name', CERT_SPECIALTY[certificationTpe])
-      .eq('is_active', true)
-      .maybeSingle()
+    const { data } = await supabase.from('specialty_multipliers').select('id, name, multiplier')
+      .eq('name', CERT_SPECIALTY[certificationTpe]).eq('is_active', true).maybeSingle()
     return { id: data?.id ?? null, name: data?.name ?? null, multiplier: data ? Number(data.multiplier) : null }
   }
   if (specialtyId) {
-    const { data } = await supabase
-      .from('specialty_multipliers')
-      .select('id, name, multiplier')
-      .eq('id', specialtyId)
-      .single()
+    const { data } = await supabase.from('specialty_multipliers').select('id, name, multiplier').eq('id', specialtyId).single()
     return { id: data?.id ?? null, name: data?.name ?? null, multiplier: data ? Number(data.multiplier) : null }
   }
   return { id: null, name: null, multiplier: 1.0 }
@@ -250,19 +343,14 @@ async function sendAutoQuoteEmail(params: {
   certificationTpe: string; wordCount: number; estimatedAmount: number; hasMissingPricing: boolean
 }) {
   const html = await render(AutoQuoteEstimateEmail({
-    clientName: params.clientName,
-    jobType: 'translation',
-    sourceLang: params.sourceLang,
-    targetLang: params.targetLang,
+    clientName: params.clientName, jobType: 'translation',
+    sourceLang: params.sourceLang, targetLang: params.targetLang,
     certificationLabel: CERT_LABEL[params.certificationTpe] ?? 'Standard',
-    wordCount: params.wordCount,
-    estimatedAmount: params.estimatedAmount,
+    wordCount: params.wordCount, estimatedAmount: params.estimatedAmount,
     hasMissingPricing: params.hasMissingPricing,
   }))
-
   const { error } = await getResend().emails.send({
-    from: FROM_EMAIL,
-    to: params.clientEmail,
+    from: FROM_EMAIL, to: params.clientEmail,
     subject: params.hasMissingPricing
       ? 'We Received Your Translation Request — LA Translation'
       : `Translation Estimate: $${params.estimatedAmount.toFixed(2)} — LA Translation`,

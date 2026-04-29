@@ -14,11 +14,12 @@ export type EmailLog = Database['public']['Tables']['email_log']['Row']
 export type JobType = Job['job_type']
 export type JobStatus = string
 
-export const JOB_TYPES: Record<JobType, string> = {
+export const JOB_TYPES: Record<string, string> = {
   translation: 'Translation',
   interpretation: 'Interpretation',
   equipment_rental: 'Equipment Rental',
   notary: 'Notary / Apostille',
+  transcription: 'Transcription / Subtitling',
 }
 
 export const TRANSLATION_STATUSES = [
@@ -65,6 +66,17 @@ export const NOTARY_STATUSES = [
   'paid',
   'scheduled',
   'completed',
+  'complete',
+  'cancelled',
+] as const
+
+export const TRANSCRIPTION_STATUSES = [
+  'draft',
+  'quote_sent',
+  'quote_accepted',
+  'paid',
+  'in_progress',
+  'delivered',
   'complete',
   'cancelled',
 ] as const
