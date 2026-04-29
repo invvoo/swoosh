@@ -39,6 +39,7 @@ export default function QuotePage() {
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
   const [accepted, setAccepted] = useState(false)
+  const [acceptError, setAcceptError] = useState<string | null>(null)
 
   // Re-request state
   const [reRequestEmail, setReRequestEmail] = useState('')
@@ -73,14 +74,19 @@ export default function QuotePage() {
 
   async function handleAccept() {
     setAccepting(true)
-    const res = await fetch(`/api/quote/${token}/accept`, { method: 'POST' })
-    const data = await res.json()
-    if (data.checkoutUrl) {
-      window.location.href = data.checkoutUrl
-    } else {
-      alert('Something went wrong. Please call us at (213) 385-7781.')
-      setAccepting(false)
+    setAcceptError(null)
+    try {
+      const res = await fetch(`/api/quote/${token}/accept`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+        return
+      }
+      setAcceptError(data.error ?? 'Something went wrong. Please call us at (213) 385-7781.')
+    } catch {
+      setAcceptError('Network error. Please try again or call (213) 385-7781.')
     }
+    setAccepting(false)
   }
 
   async function handleReRequest(e: React.FormEvent) {
@@ -247,6 +253,12 @@ export default function QuotePage() {
               <p className="text-xs text-gray-400 text-center mb-6">
                 Quote expires {new Date(quote.expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
+
+              {acceptError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 mb-4">
+                  {acceptError}
+                </div>
+              )}
 
               <Button
                 className="w-full"
