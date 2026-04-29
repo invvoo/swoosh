@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signToken } from '@/lib/tokens'
+import { autoClaimJob } from '@/lib/admin/auto-claim'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { QuoteReadyEmail } from '@/lib/email/templates/quote-ready'
 import { render as renderAsync } from '@react-email/components'
@@ -53,6 +54,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     console.error('[quote/patch]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  await autoClaimJob(service, jobId, user.id)
+
   return NextResponse.json({ ok: true })
 }
 
@@ -130,6 +134,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     if (emailError) {
       return NextResponse.json({ error: 'Quote saved but email failed to send. Check Vercel logs.' }, { status: 500 })
     }
+
+    await autoClaimJob(service, jobId, user.id)
 
     return NextResponse.json({ ok: true, token })
   } catch (err) {

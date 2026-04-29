@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
-import { ArrowLeft, FileText, User, Clock, AlertTriangle, Sparkles } from 'lucide-react'
+import { ArrowLeft, FileText, User, Clock, AlertTriangle, Sparkles, UserCheck } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
 import { JobFinalActions } from '@/components/admin/job-final-actions'
 import { AiTranslateButton } from '@/components/admin/ai-translate-button'
+import { ClaimJobButton } from '@/components/admin/claim-job-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -25,11 +26,13 @@ export default async function JobDetailPage({ params }: Props) {
     { data: history },
     { data: translatorInvoice },
     { data: adminEmployee },
+    { data: allEmployees },
   ] = await Promise.all([
-    supabase.from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name)').eq('id', jobId).single(),
+    (supabase as any).from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name), handler:employees!jobs_handled_by_fkey(id, full_name)').eq('id', jobId).single(),
     supabase.from('job_status_history').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
     supabase.from('translator_invoices').select('*').eq('job_id', jobId).maybeSingle(),
-    user ? supabase.from('employees').select('full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+    user ? supabase.from('employees').select('id, full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from('employees').select('id, full_name').order('full_name'),
   ])
 
   if (!job) notFound()
@@ -43,6 +46,8 @@ export default async function JobDetailPage({ params }: Props) {
   }
 
   const adminName = (adminEmployee as any)?.full_name ?? user?.email ?? 'Admin'
+  const handler = (job as any).handler as { id: string; full_name: string } | null
+  const employees = (allEmployees ?? []) as { id: string; full_name: string }[]
   const displayAmount = job.quote_adjusted_amount ?? job.quote_amount
   const client = job.clients as any
   const translator = job.translators as any
@@ -106,6 +111,20 @@ export default async function JobDetailPage({ params }: Props) {
               <Sparkles className="h-3.5 w-3.5" /> View AI Draft
             </Button>
           </a>
+        )}
+      </div>
+
+      {/* Handler assignment */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex items-center gap-3">
+        <UserCheck className="h-4 w-4 text-gray-400 shrink-0" />
+        <span className="text-sm text-gray-500 w-24 shrink-0">Handled by</span>
+        {user && (
+          <ClaimJobButton
+            jobId={jobId}
+            currentUserId={user.id}
+            handler={handler}
+            employees={employees}
+          />
         )}
       </div>
 

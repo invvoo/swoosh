@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { autoClaimJob } from '@/lib/admin/auto-claim'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     changed_by: user.id,
     note: `Assigned to ${translator.full_name}`,
   })
+
+  await autoClaimJob(service, jobId, user.id)
 
   return NextResponse.json({ ok: true })
 }
