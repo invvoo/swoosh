@@ -13,6 +13,17 @@ const JOB_TYPE_LABELS: Record<string, string> = {
   transcription: 'Transcription / Subtitling',
 }
 
+export async function notifyAdmin({ subject, jobId, message }: { subject: string; jobId?: string; message: string }) {
+  if (!ADMIN_EMAIL || !process.env.RESEND_API_KEY) return
+  const adminJobUrl = jobId ? `${ADMIN_URL}/admin/jobs/${jobId}` : ADMIN_URL
+  await getResend().emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject,
+    html: `<p>${message}</p>${jobId ? `<p><a href="${adminJobUrl}">View in admin portal →</a></p>` : ''}`,
+  })
+}
+
 export async function notifyAdminNewInquiry(props: Omit<NewInquiryEmailProps, 'adminUrl'>) {
   if (!ADMIN_EMAIL) {
     console.error('[notify-admin] ADMIN_NOTIFY_EMAIL env var is not set — skipping admin notification')

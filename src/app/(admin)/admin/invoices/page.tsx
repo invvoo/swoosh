@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import PayoutButton from './payout-button'
+import { ApproveInvoiceButton } from './approve-invoice-button'
 
 export default async function InvoicesPage() {
   const supabase = await createClient()
@@ -9,16 +10,55 @@ export default async function InvoicesPage() {
   const { data: invoices } = await supabase
     .from('translator_invoices')
     .select('*, translators(full_name, email, stripe_connect_id), jobs(invoice_number, job_type, clients(contact_name))')
-    .in('status', ['approved', 'queued', 'paid', 'failed'])
-    .order('payout_due_at', { ascending: true })
+    .in('status', ['submitted', 'approved', 'queued', 'paid', 'failed'])
+    .order('created_at', { ascending: true })
 
+  const submitted = (invoices ?? []).filter((i) => i.status === 'submitted')
   const pending = (invoices ?? []).filter((i) => i.status === 'approved')
-  const others = (invoices ?? []).filter((i) => i.status !== 'approved')
+  const others = (invoices ?? []).filter((i) => !['submitted', 'approved'].includes(i.status))
   const now = new Date()
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-[#1a1a2e] mb-6">Invoices &amp; Payouts</h1>
+
+      {/* Submitted invoices awaiting approval */}
+      {submitted.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg mb-8">
+          <div className="px-6 py-4 border-b border-amber-200">
+            <h2 className="font-semibold text-amber-900">Awaiting Approval ({submitted.length})</h2>
+            <p className="text-xs text-amber-700 mt-0.5">Vendor-submitted invoices — approve to queue for net-30 payout</p>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-amber-50 border-b border-amber-100">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-amber-800">Vendor</th>
+                <th className="px-4 py-3 text-left font-medium text-amber-800">Job</th>
+                <th className="px-4 py-3 text-right font-medium text-amber-800">Amount</th>
+                <th className="px-4 py-3 text-right font-medium text-amber-800">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-amber-100">
+              {submitted.map((inv: any) => (
+                <tr key={inv.id} className="hover:bg-amber-50/50">
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{inv.translators?.full_name}</p>
+                    <p className="text-xs text-gray-400">{inv.translators?.email}</p>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {inv.jobs?.invoice_number ?? inv.job_id?.slice(0, 8)}
+                    <p className="text-xs text-gray-400">{inv.jobs?.clients?.contact_name}</p>
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(Number(inv.amount))}</td>
+                  <td className="px-4 py-3 text-right">
+                    <ApproveInvoiceButton invoiceId={inv.id} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Pending payouts */}
       <div className="bg-white rounded-lg border border-gray-200 mb-8">
