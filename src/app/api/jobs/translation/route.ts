@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { extractWordCount } from '@/lib/pdf/word-counter'
-import { calculateQuote } from '@/lib/quote/calculator'
+import { calculateQuote, calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import { resolveTranslationRate, resolveCertMinimum } from '@/lib/quote/pricing'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AutoQuoteEstimateEmail } from '@/lib/email/templates/auto-quote-estimate'
@@ -35,6 +35,7 @@ const schema = z.object({
   // Language detection metadata from client
   detectedSourceLang: z.string().optional(),
   detectedSourceLangConfidence: z.coerce.number().min(0).max(1).optional(),
+  requestedDeliveryDays: z.coerce.number().int().min(1).max(30).optional(),
 }).refine(
   (d) => d.sourceLang || d.detectedSourceLang,
   { message: 'sourceLang or detectedSourceLang is required' },
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     specialtyId: formData.get('specialtyId') || undefined,
     detectedSourceLang: formData.get('detectedSourceLang') || undefined,
     detectedSourceLangConfidence: formData.get('detectedSourceLangConfidence') || undefined,
+    requestedDeliveryDays: formData.get('requestedDeliveryDays') || undefined,
   })
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
     clientName, clientEmail, clientPhone, clientCompany,
     targetLang, certificationTpe, specialtyId,
     detectedSourceLang, detectedSourceLangConfidence,
+    requestedDeliveryDays,
   } = parsed.data
 
   const effectiveSourceLang = parsed.data.sourceLang || detectedSourceLang!
@@ -100,10 +103,28 @@ export async function POST(req: NextRequest) {
   const minimum = resolveCertMinimum(certForMinimum, effectiveSourceLang, targetLang, settingsMap)
 
   // No auto-quote if word count couldn't be extracted or pricing is missing
+  const certKey = (certForMinimum as 'court' | 'general' | 'none')
+  const standardDays = wordCount > 0 ? calcTurnaroundDays(wordCount, certKey) : null
+
+  let rushDays = 0
+  let rushFeePercent = 0
+  let rushAmount = 0
+  if (requestedDeliveryDays !== undefined && standardDays !== null && requestedDeliveryDays < standardDays) {
+    const rush = calculateRushFee(0, standardDays - requestedDeliveryDays)
+    rushDays = rush.rushDays
+    rushFeePercent = rush.rushFeePercent
+  }
+
   let quoteAmount: number | null = null
   if (wordCount > 0 && pricing.perWordRate !== null && specialtyRow.multiplier !== null) {
     const q = calculateQuote(wordCount, pricing.perWordRate, specialtyRow.multiplier, specialtyRow.name ?? '', minimum)
-    quoteAmount = q.finalAmount
+    if (rushDays > 0) {
+      const rush = calculateRushFee(q.finalAmount, rushDays)
+      rushAmount = rush.rushAmount
+      quoteAmount = rush.totalAmount
+    } else {
+      quoteAmount = q.finalAmount
+    }
   }
 
   // Upload document
@@ -145,12 +166,19 @@ export async function POST(req: NextRequest) {
       quote_per_word_rate: pricing.perWordRate ?? null,
       quote_multiplier: specialtyRow.multiplier ?? null,
       quote_amount: quoteAmount,
+      quote_rush_days: rushDays,
+      quote_rush_fee_percent: rushFeePercent,
+      quote_rush_amount: rushAmount || null,
+      estimated_turnaround_days: standardDays,
+      requested_delivery_date: requestedDeliveryDays && standardDays
+        ? new Date(Date.now() + requestedDeliveryDays * 86400000).toISOString().slice(0, 10)
+        : null,
       detected_source_lang: detectedSourceLang ?? null,
       detected_source_lang_confidence: detectedSourceLangConfidence ?? null,
       certification_type: certificationTpe ?? null,
       missing_pricing_warning: pricing.warning ?? null,
       quote_is_pivot: pricing.isPivot,
-    })
+    } as any)
     .select('id')
     .single()
   if (jobError || !job) {
