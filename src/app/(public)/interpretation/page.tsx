@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { ALL_LANGUAGES } from '@/lib/languages'
+import { formatCurrency } from '@/lib/utils'
 
 const INTERPRETATION_TYPES = [
   { value: 'in_person', label: 'In-Person' },
@@ -56,7 +57,7 @@ export default function InterpretationRequestPage() {
       setEstimatedQuote({ amount: data.estimatedQuote, billedMinutes: data.billedMinutes })
       setSuccess(true)
     } else {
-      setError('Something went wrong. Please call us at (213) 385-7781.')
+      setError('We were unable to submit your request. Please try again or call us at (213) 385-7781.')
       setSubmitting(false)
     }
   }
@@ -67,26 +68,26 @@ export default function InterpretationRequestPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
+          <h2 className="text-xl font-bold mb-2">Interpretation Request Submitted</h2>
           <p className="text-gray-500 text-sm mb-4">
-            We received your interpretation request.
+            Your request has been received. Our coordination team will review it and contact you to confirm interpreter availability.
           </p>
 
           {estimatedQuote && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 text-left">
               <p className="text-blue-800 font-semibold text-base">
-                Estimated quote: ${estimatedQuote.amount.toFixed(2)}
+                Estimated Quote: {formatCurrency(estimatedQuote.amount)}
               </p>
               {estimatedQuote.billedMinutes !== requestedMinutes && (
                 <p className="text-blue-600 text-sm mt-1">
-                  Based on {estimatedQuote.billedMinutes} minutes (3-hour minimum applies)
+                  Billed at {estimatedQuote.billedMinutes} minutes — a 3-hour minimum applies to all bookings.
                 </p>
               )}
             </div>
           )}
 
           <p className="text-gray-500 text-sm mb-6">
-            This is an estimate. Our team will confirm availability and send you a formal quote.
+            This is a preliminary estimate based on our standard rates. Our team will confirm interpreter availability and issue a formal quote prior to the appointment.
           </p>
 
           <p className="text-sm text-gray-500">

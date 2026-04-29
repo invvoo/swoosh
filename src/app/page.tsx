@@ -128,7 +128,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/translation"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-[#1a1a2e] rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg shadow-black/20">
-              Get an Instant Quote <ArrowRight className="h-4 w-4" />
+              Get a Quote <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/interpretation"
               className="inline-flex items-center gap-2 px-7 py-3.5 border border-white/30 bg-white/5 rounded-xl font-medium hover:bg-white/15 transition-colors backdrop-blur-sm">

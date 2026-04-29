@@ -14,9 +14,9 @@ import { ALL_LANGUAGES } from '@/lib/languages'
 type CertificationType = 'none' | 'general' | 'court'
 
 const CERT_OPTIONS: { value: CertificationType; label: string; description: string }[] = [
-  { value: 'none', label: 'No Certification', description: 'Standard translation, no official certification needed' },
-  { value: 'general', label: 'General / Company Certification', description: 'For USCIS, passport office, job applications, government agencies, or internal business use' },
-  { value: 'court', label: 'Court Certification', description: 'For legal proceedings, court submissions, and litigation' },
+  { value: 'none', label: 'Standard Translation', description: 'For personal use, internal business documents, or any purpose that does not require official certification.' },
+  { value: 'general', label: 'Certified Translation', description: 'Accepted by USCIS, passport offices, government agencies, universities, and employers. Includes a signed certificate of accuracy.' },
+  { value: 'court', label: 'Court-Certified Translation', description: 'Required for legal proceedings, court filings, depositions, and litigation. Completed by a court-certified translator.' },
 ]
 
 const CERT_SPECIALTY: Record<CertificationType, string> = {
@@ -211,27 +211,27 @@ export default function TranslationRequestPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Request Received!</h2>
+          <h2 className="text-xl font-bold mb-2">Translation Request Submitted</h2>
           {successData?.wordCount && (
             <p className="text-gray-600 mb-3">
-              Your document has <strong>{successData.wordCount.toLocaleString()} words</strong>.
+              Your document contains <strong>{successData.wordCount.toLocaleString()} words</strong>.
             </p>
           )}
           {successData?.missingPricing ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700 mb-4 text-left">
-              Our team will review your request and calculate a custom quote. You&apos;ll receive it by email shortly.
+              This language pair requires custom pricing. A member of our team will prepare your quote and send it by email within one business day.
             </div>
           ) : successData?.estimatedQuote ? (
             <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 mb-4">
               <p className="font-semibold">Estimated Quote: {formatCurrency(successData.estimatedQuote)}</p>
-              <p className="text-xs mt-1">This is an estimate. Our team will review your document and send you a formal quote. Final pricing may be adjusted before you receive it.</p>
+              <p className="text-xs mt-1">This estimate is based on our standard rate for this language pair. A member of our team will review your document and send a formal quote — you pay only after accepting.</p>
             </div>
           ) : null}
           <p className="text-gray-500 text-sm mb-4">
-            We&apos;ll send you a formal quote by email. You can accept and pay directly from that email — no account needed.
+            You will receive a formal quote by email. Review and approve the quote with a single click — payment is collected securely online.
           </p>
           <p className="text-xs text-gray-400">
-            Typical response: 2 business hours &nbsp;·&nbsp; Questions? Call{' '}
+            Typical response within 2 business hours &nbsp;·&nbsp; Questions? Call{' '}
             <a href="tel:2133857781" className="text-blue-600 font-medium">(213) 385-7781</a>
           </p>
         </div>
@@ -254,7 +254,7 @@ export default function TranslationRequestPage() {
       <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#1a1a2e]">Request a Translation</h1>
-          <p className="text-gray-500 mt-2">Upload your document — we&apos;ll detect the language and give you an instant estimate</p>
+          <p className="text-gray-500 mt-2">Upload your document and we will detect the source language and calculate your quote automatically.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-8 space-y-6">
@@ -463,7 +463,7 @@ export default function TranslationRequestPage() {
                     <p>≈ 1,000 words → {formatCurrency(est1000)}</p>
                   </div>
                   <p className="text-xs text-blue-400 pt-0.5">
-                    Estimate based on word count from your document. Our team reviews before sending the final quote.
+                    Estimate based on your document's word count. A member of our team will verify the final quote before sending it to you.
                   </p>
                 </div>
               )
@@ -471,7 +471,7 @@ export default function TranslationRequestPage() {
             return (
               <div className="flex items-start gap-2 bg-amber-50 rounded-lg px-4 py-3 text-sm text-amber-700">
                 <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>We don&apos;t have standard pricing for this language pair on file. Our team will review and provide a custom quote.</p>
+                <p>This language pair is not in our standard rate schedule. Our team will prepare a custom quote and send it to you by email.</p>
               </div>
             )
           })()}
@@ -483,7 +483,7 @@ export default function TranslationRequestPage() {
           </Button>
 
           <p className="text-xs text-center text-gray-400">
-            Our team reviews every request before sending a formal quote. You&apos;ll accept and pay from the quote email — no account required.
+            Every request is reviewed by our team before a formal quote is issued. You accept and pay directly from the quote email — no account required.
           </p>
         </form>
       </div>
