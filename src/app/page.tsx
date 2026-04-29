@@ -82,7 +82,11 @@ export default function HomePage() {
       {/* Nav */}
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</span>
+          <Link href="/" className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="LA Translation" className="h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <span className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</span>
+          </Link>
           <div className="hidden md:flex items-center gap-6 text-sm text-gray-600">
             <a href="#services" className="hover:text-[#1a1a2e]">Services</a>
             <a href="#clients" className="hover:text-[#1a1a2e]">Clients</a>
@@ -90,31 +94,43 @@ export default function HomePage() {
             <a href="tel:2133857781" className="flex items-center gap-1.5 text-[#1a1a2e] font-medium hover:underline">
               <Phone className="h-3.5 w-3.5" />(213) 385-7781
             </a>
-            <Link href="/admin/login" className="px-4 py-1.5 rounded-lg bg-[#1a1a2e] text-white text-xs font-medium hover:bg-[#2a2a4e] transition-colors">
-              Admin
+            <Link href="/client/login" className="text-gray-600 hover:text-[#1a1a2e] transition-colors">
+              Client Portal
+            </Link>
+            <Link href="/vendor/login" className="px-4 py-1.5 rounded-lg bg-[#1a1a2e] text-white text-xs font-medium hover:bg-[#2a2a4e] transition-colors">
+              Vendor Login
             </Link>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="bg-[#1a1a2e] text-white py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-blue-300 text-sm font-medium mb-3 tracking-wide uppercase">Los Angeles · Since 2003</p>
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-            Professional Translation &amp;<br />Interpretation Services
+      <section className="relative bg-[#1a1a2e] text-white py-24 px-6 overflow-hidden">
+        {/* Decorative gradient orbs */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-700/20 rounded-full blur-3xl" />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-sm font-medium mb-6 backdrop-blur-sm">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse inline-block" />
+            Los Angeles · Since 2003 · 2,000+ Certified Professionals
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight tracking-tight">
+            Professional Translation<br /><span className="text-blue-400">&amp; Interpretation</span>
           </h1>
-          <p className="text-gray-300 text-lg mb-8 max-w-2xl mx-auto">
-            A network of 2,000+ certified translators and interpreters in 200+ languages.
-            Serving corporations, law firms, hospitals, and government agencies since 2003.
+          <p className="text-gray-300 text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+            Certified translations accepted by USCIS, courts, and government agencies.
+            Serving law firms, hospitals, corporations, and government since 2003.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/translation"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white text-[#1a1a2e] rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-              Request a Translation <ArrowRight className="h-4 w-4" />
+              className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-[#1a1a2e] rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg shadow-black/20">
+              Get an Instant Quote <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/interpretation"
-              className="inline-flex items-center gap-2 px-6 py-3 border border-white/30 rounded-lg font-medium hover:bg-white/10 transition-colors">
+              className="inline-flex items-center gap-2 px-7 py-3.5 border border-white/30 bg-white/5 rounded-xl font-medium hover:bg-white/15 transition-colors backdrop-blur-sm">
               Book an Interpreter
             </Link>
           </div>
@@ -142,10 +158,20 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-2 gap-6">
             {SERVICES.map((svc) => (
-              <div key={svc.title} className="bg-white rounded-xl border border-gray-100 p-6 flex flex-col">
-                <h3 className="text-xl font-bold text-[#1a1a2e] mb-2">{svc.title}</h3>
-                <p className="text-gray-500 text-sm mb-4 flex-1">{svc.description}</p>
-                <ul className="grid grid-cols-2 gap-1.5 mb-5">
+              <div key={svc.title} className="bg-white rounded-2xl border border-gray-100 p-7 flex flex-col shadow-sm hover:shadow-md transition-shadow group">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#1a1a2e]/5 flex items-center justify-center flex-shrink-0 group-hover:bg-[#1a1a2e]/10 transition-colors">
+                    {svc.title === 'Translation' && <span className="text-lg">📄</span>}
+                    {svc.title === 'Interpretation' && <span className="text-lg">🎙️</span>}
+                    {svc.title === 'Equipment Rental' && <span className="text-lg">🎧</span>}
+                    {svc.title === 'Notary & Apostille' && <span className="text-lg">✒️</span>}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-[#1a1a2e]">{svc.title}</h3>
+                    <p className="text-gray-500 text-sm mt-1 leading-relaxed">{svc.description}</p>
+                  </div>
+                </div>
+                <ul className="grid grid-cols-2 gap-1.5 mb-6 flex-1">
                   {svc.highlights.map((h) => (
                     <li key={h} className="flex items-center gap-1.5 text-xs text-gray-600">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />{h}
@@ -153,7 +179,7 @@ export default function HomePage() {
                   ))}
                 </ul>
                 <Link href={svc.href}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1a1a2e] text-white rounded-lg text-sm font-medium hover:bg-[#2a2a4e] transition-colors w-full justify-center">
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#1a1a2e] text-white rounded-xl text-sm font-medium hover:bg-[#2a2a4e] transition-colors w-full justify-center">
                   {svc.cta} <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
@@ -277,8 +303,71 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Location / Map */}
+      <section id="contact" className="py-16 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-[#1a1a2e]">Visit Us</h2>
+            <p className="text-gray-500 mt-2 text-sm">Conveniently located on Wilshire Boulevard in Los Angeles</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-2xl p-6 space-y-4 text-sm text-gray-700">
+                <div className="flex items-start gap-3">
+                  <MapPin className="h-5 w-5 text-[#1a1a2e] flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-gray-900">2975 Wilshire Blvd #205</p>
+                    <p>Los Angeles, CA 90010</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-[#1a1a2e] flex-shrink-0" />
+                  <div>
+                    <a href="tel:2133857781" className="hover:text-[#1a1a2e] font-medium">(213) 385-7781</a>
+                    <span className="text-gray-400 mx-2">·</span>
+                    <a href="tel:2133680700" className="hover:text-[#1a1a2e]">(213) 368-0700</a>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-[#1a1a2e] flex-shrink-0" />
+                  <a href="mailto:info@latranslation.com" className="hover:text-[#1a1a2e]">info@latranslation.com</a>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-[#1a1a2e] flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-gray-900">Monday – Friday</p>
+                    <p className="text-gray-500">9:00 AM – 6:00 PM</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link href="/translation"
+                  className="flex-1 text-center px-4 py-2.5 bg-[#1a1a2e] text-white rounded-xl text-sm font-medium hover:bg-[#2a2a4e] transition-colors">
+                  Get a Quote
+                </Link>
+                <a href="tel:2133857781"
+                  className="flex-1 text-center px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:border-gray-400 transition-colors">
+                  Call Us
+                </a>
+              </div>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-gray-200 min-h-[280px]">
+              <iframe
+                src="https://maps.google.com/maps?q=2975+Wilshire+Blvd+%23205,+Los+Angeles,+CA+90010&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0, minHeight: '280px' }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="LA Translation & Interpretation location"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Contact / Footer */}
-      <footer id="contact" className="bg-[#1a1a2e] text-white py-12 px-6">
+      <footer className="bg-[#1a1a2e] text-white py-12 px-6">
         <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-8">
           <div>
             <p className="font-bold text-lg mb-3">L.A. Translation &amp; Interpretation</p>

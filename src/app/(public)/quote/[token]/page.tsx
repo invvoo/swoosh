@@ -58,17 +58,20 @@ export default function QuotePage() {
   }
 
   if (error) {
+    const isExpired = error === 'expired'
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-sm border p-8 text-center">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-gray-900 mb-2">
-            {error === 'expired' ? 'Quote Expired' : 'Quote Not Found'}
+            {isExpired ? 'Quote Expired' : error === 'not_found' ? 'Quote Not Found' : 'Link Invalid'}
           </h1>
           <p className="text-gray-500 text-sm mb-6">
-            {error === 'expired'
+            {isExpired
               ? 'This quote link has expired. Please contact us to request a new quote.'
-              : 'This link is no longer valid.'}
+              : error === 'not_found'
+              ? 'This quote could not be found. It may have been cancelled.'
+              : 'This link is not valid. Please use the link from your quote email, or contact us for a new quote.'}
           </p>
           <p className="text-sm text-gray-500">
             Call us at <a href="tel:2133857781" className="text-blue-600">(213) 385-7781</a> or email{' '}

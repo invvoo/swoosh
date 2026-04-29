@@ -24,22 +24,41 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const pathname = request.nextUrl.pathname
 
-  // Protect all /admin routes except /admin/login
-  if (
-    request.nextUrl.pathname.startsWith('/admin') &&
-    !request.nextUrl.pathname.startsWith('/admin/login') &&
-    !user
-  ) {
+  // ── Admin routes ──────────────────────────────────────────────────────────
+  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login') && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin/login'
     return NextResponse.redirect(url)
   }
-
-  // Redirect already-authenticated users away from login page
-  if (request.nextUrl.pathname === '/admin/login' && user) {
+  if (pathname === '/admin/login' && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin'
+    return NextResponse.redirect(url)
+  }
+
+  // ── Client portal routes ──────────────────────────────────────────────────
+  if (pathname.startsWith('/client') && !pathname.startsWith('/client/login') && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/client/login'
+    return NextResponse.redirect(url)
+  }
+  if (pathname === '/client/login' && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/client/jobs'
+    return NextResponse.redirect(url)
+  }
+
+  // ── Vendor portal routes ──────────────────────────────────────────────────
+  if (pathname.startsWith('/vendor') && !pathname.startsWith('/vendor/login') && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/vendor/login'
+    return NextResponse.redirect(url)
+  }
+  if (pathname === '/vendor/login' && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/vendor/jobs'
     return NextResponse.redirect(url)
   }
 
@@ -47,5 +66,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/client/:path*', '/vendor/:path*'],
 }

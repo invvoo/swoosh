@@ -17,6 +17,7 @@ const SERVICE_TYPES = [
 const DELIVERY_METHODS = [
   { value: 'in_person', label: 'In-Person Pickup', description: '2975 Wilshire Blvd #205, Los Angeles, CA 90010' },
   { value: 'mail', label: 'Mail Delivery', description: 'Documents mailed to your address' },
+  { value: 'mobile_notary', label: 'Mobile Notary (We Come to You)', description: 'Nearby service within the LA area · $80–$150 + $15 per signature' },
 ]
 
 const DOCUMENT_TYPES = [
@@ -29,7 +30,7 @@ export default function NotaryPage() {
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
     notaryServiceType: 'notary', deliveryMethod: 'in_person',
-    documentType: '', documentCount: '1', notes: '',
+    documentType: '', documentCount: '1', mobileAddress: '', notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -55,9 +56,12 @@ export default function NotaryPage() {
         clientCompany: form.clientCompany || undefined,
         notaryServiceType: form.notaryServiceType,
         deliveryMethod: form.deliveryMethod,
+        notaryAddress: form.deliveryMethod === 'mobile_notary' ? form.mobileAddress : undefined,
+        notarySignatureCount: parseInt(form.documentCount) || 1,
         notes: [
           form.documentType ? `Document type: ${form.documentType}` : '',
-          form.documentCount !== '1' ? `Number of documents: ${form.documentCount}` : '',
+          form.documentCount !== '1' ? `Number of documents/signatures: ${form.documentCount}` : '',
+          form.deliveryMethod === 'mobile_notary' && form.mobileAddress ? `Mobile address: ${form.mobileAddress}` : '',
           form.notes,
         ].filter(Boolean).join('\n') || undefined,
       }),
@@ -111,9 +115,10 @@ export default function NotaryPage() {
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-sm text-blue-800">
           <p className="font-semibold mb-1">Standard Pricing</p>
           <ul className="space-y-0.5 text-blue-700">
-            <li>Notarization: <strong>$15</strong> per document</li>
+            <li>Notarization: <strong>$15</strong> per signature</li>
             <li>Apostille: <strong>$95</strong> per document · <strong>$50</strong> each additional (same submission)</li>
             <li>Death certificate (Norwalk State Registrar): <strong>$199.95</strong></li>
+            <li>Mobile notary (LA area): <strong>$80–$150</strong> travel + <strong>$15</strong>/signature</li>
           </ul>
         </div>
 
@@ -197,6 +202,20 @@ export default function NotaryPage() {
                   </div>
                 </label>
               ))}
+              {form.deliveryMethod === 'mobile_notary' && (
+                <div className="mt-3 space-y-1.5 pl-1">
+                  <Label>Your address (LA area only) *</Label>
+                  <Input
+                    required
+                    placeholder="1234 Main St, Los Angeles, CA 90010"
+                    value={form.mobileAddress}
+                    onChange={set('mobileAddress')}
+                  />
+                  <p className="text-xs text-gray-400">
+                    Mobile notary service available within Los Angeles. Pricing: $80–$150 travel fee + $15 per notary signature.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

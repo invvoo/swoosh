@@ -47,14 +47,18 @@ export default function QuoteReviewPage() {
     alert('Quote saved.')
   }
 
+  const [sendError, setSendError] = useState<string | null>(null)
+
   async function handleSend() {
     if (!confirm(`Send quote for ${formatCurrency(parseFloat(adjustedAmount || '0'))} to ${(job?.clients as any)?.email}?`)) return
     setSending(true)
+    setSendError(null)
     const res = await fetch(`/api/admin/jobs/${jobId}/quote`, { method: 'POST' })
     if (res.ok) {
       router.push(`/admin/jobs/${jobId}`)
     } else {
-      alert('Failed to send quote. Check logs.')
+      const body = await res.json().catch(() => ({}))
+      setSendError(body.error ?? `Server error (${res.status})`)
       setSending(false)
     }
   }
@@ -117,6 +121,12 @@ export default function QuoteReviewPage() {
             placeholder="Notes visible only to staff…"
           />
         </div>
+
+        {sendError && (
+          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 font-mono break-all">
+            {sendError}
+          </p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <Button variant="outline" onClick={handleAdjust} disabled={saving}>

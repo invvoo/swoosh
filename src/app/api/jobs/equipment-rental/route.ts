@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
+import { notifyAdminNewInquiry } from '@/lib/email/notify-admin'
 
 const rentalItemSchema = z.object({
   itemId: z.string().uuid(),
@@ -60,6 +61,18 @@ export async function POST(req: NextRequest) {
   if (jobError || !job) return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
 
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
+
+  notifyAdminNewInquiry({
+    jobType: 'equipment_rental',
+    jobId: job.id,
+    clientName,
+    clientEmail,
+    clientPhone,
+    rentalStartDate,
+    rentalEndDate,
+    rentalItems: items,
+    estimatedAmount: Math.round(totalAmount * 100) / 100,
+  }).catch((err) => console.error('[equipment-rental] Admin notify error:', err))
 
   return NextResponse.json({ jobId: job.id, estimatedQuote: totalAmount })
 }

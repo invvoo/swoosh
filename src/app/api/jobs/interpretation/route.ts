@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { calculateInterpretationQuote } from '@/lib/quote/pricing'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AutoQuoteEstimateEmail } from '@/lib/email/templates/auto-quote-estimate'
+import { notifyAdminNewInquiry } from '@/lib/email/notify-admin'
 
 const schema = z.object({
   clientName: z.string().min(1),
@@ -101,6 +102,22 @@ export async function POST(req: NextRequest) {
   } catch {
     // Email failure is non-fatal; job was already created
   }
+
+  notifyAdminNewInquiry({
+    jobType: 'interpretation',
+    jobId: job.id,
+    clientName,
+    clientEmail,
+    clientPhone,
+    sourceLang: jobData.sourceLang,
+    targetLang: jobData.targetLang,
+    locationType,
+    scheduledAt: jobData.scheduledAt
+      ? new Date(jobData.scheduledAt).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : undefined,
+    durationMinutes,
+    estimatedAmount: quote.amount,
+  }).catch((err) => console.error('[interpretation] Admin notify error:', err))
 
   return NextResponse.json({ jobId: job.id, estimatedQuote: quote.amount, billedMinutes: quote.billedMinutes })
 }

@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/utils'
-import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap } from 'lucide-react'
+import { calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
@@ -26,7 +27,7 @@ const CERT_SPECIALTY: Record<CertificationType, string> = {
 export default function TranslationRequestPage() {
   const [langPairs, setLangPairs] = useState<{ id: string; source_lang: string; target_lang: string; per_word_rate: number }[]>([])
   const [specialties, setSpecialties] = useState<{ name: string; multiplier: number }[]>([])
-  const [minimums, setMinimums] = useState({ standard: 95, certified: 250, court: 550, courtPremium: 750 })
+  const [minimums, setMinimums] = useState({ standard: 95, certified: 120, court: 275, courtPremium: 450 })
   const [courtPremiumLangs, setCourtPremiumLangs] = useState<string[]>(['Japanese', 'Hebrew'])
 
   // File + detection state
@@ -42,6 +43,9 @@ export default function TranslationRequestPage() {
     targetLang: '',
     certificationTpe: 'none' as CertificationType,
   })
+
+  const [rushEnabled, setRushEnabled] = useState(false)
+  const [requestedDays, setRequestedDays] = useState<number | ''>('')
 
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -99,10 +103,12 @@ export default function TranslationRequestPage() {
     if (!selected) return
 
     setDetecting(true)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 12000)
     try {
       const fd = new FormData()
       fd.append('document', selected)
-      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd })
+      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd, signal: controller.signal })
       const data = await res.json()
       const lang: string = data.language ?? 'Unknown'
       const conf: number = data.confidence ?? 0
@@ -117,8 +123,10 @@ export default function TranslationRequestPage() {
         setShowManualSource(true)
       }
     } catch {
+      // Timeout or network error — fall back to manual source language
       setShowManualSource(true)
     } finally {
+      clearTimeout(timeout)
       setDetecting(false)
     }
   }
@@ -184,6 +192,7 @@ export default function TranslationRequestPage() {
     if (form.clientCompany) fd.append('clientCompany', form.clientCompany)
     fd.append('targetLang', form.targetLang)
     fd.append('certificationTpe', form.certificationTpe)
+    if (rushEnabled && requestedDays !== '') fd.append('requestedDeliveryDays', String(requestedDays))
     fd.append('detectedSourceLang', detectedLang ?? form.sourceLang)
     fd.append('detectedSourceLangConfidence', String(detectedConfidence))
     // For manual override or confirmation
@@ -388,6 +397,62 @@ export default function TranslationRequestPage() {
               </div>
             </div>
           )}
+
+          {/* Turnaround + Rush fee */}
+          {file && !detecting && form.certificationTpe && (() => {
+            const standardDays = calcTurnaroundDays(100, form.certificationTpe) // placeholder, real calc needs word count
+            return (
+              <div className="space-y-3">
+                <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
+                  <p className="font-medium text-gray-800 mb-0.5">Estimated Turnaround</p>
+                  <p className="text-xs text-gray-500">
+                    {form.certificationTpe === 'court' && 'Court certified: ~2,000 words/day'}
+                    {form.certificationTpe === 'general' && 'Company certified: ~3,500 words/day'}
+                    {form.certificationTpe === 'none' && 'Standard: ~5,000 words/day'}
+                    {' — final turnaround calculated after we count your document words.'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    rushEnabled ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input type="checkbox" className="mt-0.5 accent-orange-500"
+                      checked={rushEnabled}
+                      onChange={(e) => { setRushEnabled(e.target.checked); if (!e.target.checked) setRequestedDays('') }} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-orange-500" />
+                        <p className="font-medium text-sm text-gray-900">Rush Delivery</p>
+                        <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">+20% per day rushed</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">Need it sooner? We&apos;ll prioritize your job.</p>
+                    </div>
+                  </label>
+
+                  {rushEnabled && (
+                    <div className="mt-2 pl-3 space-y-1.5">
+                      <Label className="text-xs">How many business days do you need it in?</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={30}
+                        placeholder="e.g. 2"
+                        value={requestedDays}
+                        onChange={(e) => setRequestedDays(e.target.value ? parseInt(e.target.value) : '')}
+                        className="max-w-[120px]"
+                      />
+                      {requestedDays !== '' && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          Rush fee will be calculated after we count your word count. Final quote includes the surcharge.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Rate preview */}
           {form.sourceLang && form.targetLang && file && !detecting && (() => {
