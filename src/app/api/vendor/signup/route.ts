@@ -10,6 +10,8 @@ const schema = z.object({
   vendorType: z.enum(['translator', 'interpreter', 'both', 'notary', 'other']),
   languagePairs: z.string().optional(),
   specialties: z.array(z.string()).optional(),
+  perWordRate: z.number().positive().optional(),
+  hourlyRate: z.number().positive().optional(),
   notes: z.string().max(1000).optional(),
 })
 
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const { fullName, email, phone, vendorType, languagePairs, specialties, notes } = parsed.data
+  const { fullName, email, phone, vendorType, languagePairs, specialties, perWordRate, hourlyRate, notes } = parsed.data
 
   const service = createServiceClient()
 
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
       vendor_type: vendorType,
       language_pairs: langPairsArray,
       specialties: specialties ?? [],
+      per_word_rate: perWordRate ?? null,
+      hourly_rate: hourlyRate ?? null,
       notes: notes ?? null,
       is_active: false,
       applied_at: new Date().toISOString(),
@@ -75,6 +79,8 @@ export async function POST(req: NextRequest) {
     vendorType: VENDOR_TYPE_LABELS[vendorType] ?? vendorType,
     languagePairs: langPairsArray,
     specialties: specialties ?? [],
+    perWordRate,
+    hourlyRate,
     notes,
   }).catch((err) => console.error('[vendor-signup] Admin notify error:', err))
 
@@ -88,6 +94,8 @@ async function notifyAdminNewVendorApplication(params: {
   vendorType: string
   languagePairs: string[]
   specialties: string[]
+  perWordRate?: number
+  hourlyRate?: number
   notes?: string
 }) {
   const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? ''
@@ -102,6 +110,8 @@ async function notifyAdminNewVendorApplication(params: {
     `Type: ${params.vendorType}`,
     params.languagePairs.length > 0 ? `Languages: ${params.languagePairs.join(', ')}` : null,
     params.specialties.length > 0 ? `Specialties: ${params.specialties.join(', ')}` : null,
+    params.perWordRate != null ? `Per-word rate: $${params.perWordRate.toFixed(4)}` : null,
+    params.hourlyRate != null ? `Hourly rate: $${params.hourlyRate.toFixed(2)}/hr` : null,
     params.notes ? `\nMessage:\n${params.notes}` : null,
   ].filter(Boolean).join('\n')
 
