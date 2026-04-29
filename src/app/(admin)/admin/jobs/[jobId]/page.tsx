@@ -105,6 +105,13 @@ export default async function JobDetailPage({ params }: Props) {
           !['ai_translating', 'ai_review_pending', 'assigned', 'in_progress', 'delivered', 'complete'].includes(job.status) && (
           <AiTranslateButton jobId={jobId} />
         )}
+        {job.job_type === 'translation' && (job as any).translated_doc_path && !['delivered', 'complete'].includes(job.status) && (
+          <a href={`/api/admin/jobs/${jobId}/document?type=translated`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="border-green-200 text-green-700 hover:bg-green-50">
+              View Vendor Submission
+            </Button>
+          </a>
+        )}
         {job.job_type === 'translation' && (job as any).ai_draft_path && (
           <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">

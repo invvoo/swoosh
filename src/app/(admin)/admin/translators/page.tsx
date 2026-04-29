@@ -4,13 +4,24 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
+import { ApproveVendorButtons } from '@/components/admin/approve-vendor-buttons'
 
 export default async function TranslatorsPage() {
   const supabase = await createClient()
-  const { data: translators } = await supabase
-    .from('translators')
-    .select('id, full_name, email, phone, language_pairs, specialties, stripe_connect_status, is_active')
-    .order('full_name')
+
+  const [{ data: translators }, { data: pending }] = await Promise.all([
+    supabase
+      .from('translators')
+      .select('id, full_name, email, phone, language_pairs, specialties, stripe_connect_status, is_active')
+      .eq('is_active', true)
+      .order('full_name'),
+    supabase
+      .from('translators')
+      .select('id, full_name, email, language_pairs, specialties, vendor_type, applied_at')
+      .eq('is_active', false)
+      .not('applied_at', 'is', null)
+      .order('applied_at', { ascending: true }),
+  ])
 
   return (
     <div className="p-8">
@@ -21,6 +32,38 @@ export default async function TranslatorsPage() {
         </Link>
       </div>
 
+      {/* Pending vendor applications */}
+      {(pending ?? []).length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg mb-8">
+          <div className="px-6 py-4 border-b border-amber-200">
+            <h2 className="font-semibold text-amber-900">Pending Applications ({pending!.length})</h2>
+            <p className="text-xs text-amber-700 mt-0.5">Vendors who signed up and are awaiting approval</p>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {pending!.map((t: any) => (
+              <div key={t.id} className="flex items-center gap-4 px-6 py-4">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900">{t.full_name}</p>
+                  <p className="text-xs text-gray-500">{t.email}</p>
+                  {t.vendor_type && <p className="text-xs text-amber-700 mt-0.5 capitalize">{t.vendor_type}</p>}
+                  {(t.language_pairs ?? []).length > 0 && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {(t.language_pairs as string[]).slice(0, 4).join(', ')}
+                      {(t.language_pairs as string[]).length > 4 && ` +${(t.language_pairs as string[]).length - 4} more`}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link href={`/admin/translators/${t.id}`} className="text-xs text-gray-500 hover:underline mr-2">View profile</Link>
+                  <ApproveVendorButtons translatorId={t.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active translators */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -28,7 +71,6 @@ export default async function TranslatorsPage() {
               <th className="px-4 py-3 text-left font-medium text-gray-600">Name</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Languages</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Stripe</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -53,18 +95,13 @@ export default async function TranslatorsPage() {
                     {t.stripe_connect_status ?? 'not connected'}
                   </Badge>
                 </td>
-                <td className="px-4 py-3">
-                  <Badge className={cn('text-xs', t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
-                    {t.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </td>
                 <td className="px-4 py-3 text-right">
                   <Link href={`/admin/translators/${t.id}`} className="text-xs text-blue-600 hover:underline">View</Link>
                 </td>
               </tr>
             ))}
             {(translators ?? []).length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400">No translators yet</td></tr>
+              <tr><td colSpan={4} className="px-4 py-10 text-center text-gray-400">No active translators yet</td></tr>
             )}
           </tbody>
         </table>

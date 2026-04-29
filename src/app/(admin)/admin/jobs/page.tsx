@@ -8,6 +8,8 @@ import { Plus } from 'lucide-react'
 import { JobActionsDropdown } from '@/components/admin/job-actions-dropdown'
 import { HandlerBadge } from '@/components/admin/handler-badge'
 import { getHandlerColor } from '@/lib/handler-colors'
+import { JobSearchInput } from '@/components/admin/job-search-input'
+import { Suspense } from 'react'
 
 interface Props {
   searchParams: Promise<{ type?: string; status?: string; q?: string; mine?: string }>
@@ -64,12 +66,17 @@ export default async function JobsPage({ searchParams }: Props) {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#1a1a2e]">Jobs</h1>
-        <Link href="/admin/jobs/new">
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            New Job
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Suspense>
+            <JobSearchInput />
+          </Suspense>
+          <Link href="/admin/jobs/new">
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              New Job
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}

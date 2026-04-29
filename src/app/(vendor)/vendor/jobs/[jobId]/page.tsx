@@ -1,24 +1,41 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, Loader2, FileText, Clock } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, FileText, Clock, Upload, CheckCircle, AlertCircle, Send } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 interface VendorJob {
   id: string; job_type: string; status: string; source_lang: string | null
   target_lang: string | null; word_count: number | null; invoice_number: string | null
   deadline_at: string | null; assigned_at: string | null; created_at: string
-  document_name: string | null; clients: { contact_name: string } | null
+  document_name: string | null; document_path: string | null; ai_draft_path: string | null
+  translated_doc_path: string | null; clients: { contact_name: string } | null
 }
+
+interface InvoiceInfo { id: string; amount: number; status: string }
 
 export default function VendorJobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>()
   const [job, setJob] = useState<VendorJob | null>(null)
+  const [invoice, setInvoice] = useState<InvoiceInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [docUrl, setDocUrl] = useState<string | null>(null)
-  const [draftUrl, setDraftUrl] = useState<string | null>(null)
+
+  // Upload state
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadDone, setUploadDone] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Invoice state
+  const [invoiceAmount, setInvoiceAmount] = useState('')
+  const [invoiceNote, setInvoiceNote] = useState('')
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
+  const [invoiceError, setInvoiceError] = useState<string | null>(null)
+  const [invoiceDone, setInvoiceDone] = useState(false)
 
   useEffect(() => {
     fetch('/api/vendor/jobs').then(async (r) => {
@@ -27,11 +44,50 @@ export default function VendorJobDetailPage() {
       setJob(found ?? null)
       setLoading(false)
     })
+    fetch(`/api/vendor/jobs/${jobId}/invoice-status`).then(async (r) => {
+      if (r.ok) {
+        const d = await r.json()
+        if (d.invoice) setInvoice(d.invoice)
+      }
+    }).catch(() => {})
   }, [jobId])
 
-  async function loadDocUrl() {
-    const res = await fetch(`/api/admin/jobs/${jobId}/document`)
-    if (res.ok && res.url) setDocUrl(res.url)
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadError(null)
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`/api/vendor/jobs/${jobId}/submit`, { method: 'POST', body: form })
+    const data = await res.json().catch(() => ({}))
+    setUploading(false)
+    if (res.ok) {
+      setUploadDone(true)
+      setJob((prev) => prev ? { ...prev, status: 'in_progress', translated_doc_path: 'submitted' } : prev)
+    } else {
+      setUploadError(data.error ?? 'Upload failed. Please try again.')
+    }
+  }
+
+  async function handleInvoiceSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const amount = parseFloat(invoiceAmount)
+    if (isNaN(amount) || amount <= 0) { setInvoiceError('Enter a valid amount.'); return }
+    setInvoiceSubmitting(true)
+    setInvoiceError(null)
+    const res = await fetch(`/api/vendor/jobs/${jobId}/invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, note: invoiceNote || undefined }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setInvoiceSubmitting(false)
+    if (res.ok) {
+      setInvoiceDone(true)
+    } else {
+      setInvoiceError(data.error ?? 'Failed to submit invoice.')
+    }
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-gray-400" /></div>
@@ -47,6 +103,9 @@ export default function VendorJobDetailPage() {
   const langLabel = job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : null
   const deadline = job.deadline_at ? new Date(job.deadline_at) : null
   const isOverdue = deadline && deadline < new Date()
+  const alreadySubmitted = !!job.translated_doc_path || uploadDone
+  const canSubmitWork = ['assigned', 'in_progress'].includes(job.status)
+  const canSubmitInvoice = ['in_progress', 'delivered', 'complete'].includes(job.status) && !invoice && !invoiceDone
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -58,15 +117,17 @@ export default function VendorJobDetailPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+        {/* Job info */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full capitalize',
                 job.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
                 job.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' :
+                job.status === 'delivered' || job.status === 'complete' ? 'bg-green-100 text-green-700' :
                 'bg-gray-100 text-gray-500'
               )}>
-                {job.status.replace('_', ' ')}
+                {job.status.replace(/_/g, ' ')}
               </span>
               {job.invoice_number && <span className="text-xs text-gray-400 font-mono ml-2">{job.invoice_number}</span>}
             </div>
@@ -77,59 +138,141 @@ export default function VendorJobDetailPage() {
               </div>
             )}
           </div>
-
           <dl className="space-y-2.5 text-sm">
             {langLabel && <div className="flex justify-between"><dt className="text-gray-500">Languages</dt><dd className="font-medium">{langLabel}</dd></div>}
             {job.word_count && <div className="flex justify-between"><dt className="text-gray-500">Word count</dt><dd>{job.word_count.toLocaleString()} words</dd></div>}
-            <div className="flex justify-between"><dt className="text-gray-500">Type</dt><dd className="capitalize">{job.job_type.replace('_', ' ')}</dd></div>
+            <div className="flex justify-between"><dt className="text-gray-500">Type</dt><dd className="capitalize">{job.job_type.replace(/_/g, ' ')}</dd></div>
             {job.assigned_at && <div className="flex justify-between"><dt className="text-gray-500">Assigned</dt><dd>{new Date(job.assigned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>}
           </dl>
         </div>
 
         {/* Documents */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Documents</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">Source Documents</h2>
           <div className="space-y-3">
-            <a
-              href={`/api/admin/jobs/${jobId}/document`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm"
-            >
-              <FileText className="h-5 w-5 text-gray-400" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{job.document_name ?? 'Original Document'}</p>
-                <p className="text-xs text-gray-500">Source file to translate</p>
-              </div>
-              <Download className="h-4 w-4 text-gray-400" />
-            </a>
-
-            <a
-              href={`/api/admin/jobs/${jobId}/document?type=draft`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm"
-            >
-              <FileText className="h-5 w-5 text-purple-400" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">AI Draft</p>
-                <p className="text-xs text-gray-500">AI-generated first draft — review and refine</p>
-              </div>
-              <Download className="h-4 w-4 text-gray-400" />
-            </a>
+            {job.document_path && (
+              <a
+                href={`/api/admin/jobs/${jobId}/document`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-sm"
+              >
+                <FileText className="h-5 w-5 text-gray-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{job.document_name ?? 'Original Document'}</p>
+                  <p className="text-xs text-gray-500">Source file to translate</p>
+                </div>
+                <Download className="h-4 w-4 text-gray-400" />
+              </a>
+            )}
+            {job.ai_draft_path && (
+              <a
+                href={`/api/admin/jobs/${jobId}/document?type=draft`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg border border-purple-100 bg-purple-50 hover:bg-purple-100 transition-all text-sm"
+              >
+                <FileText className="h-5 w-5 text-purple-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">AI Draft</p>
+                  <p className="text-xs text-gray-500">AI-generated first draft — review and refine</p>
+                </div>
+                <Download className="h-4 w-4 text-purple-400" />
+              </a>
+            )}
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 text-sm text-blue-800">
-          <p className="font-medium mb-1">How to submit your work</p>
-          <p className="text-blue-700 text-xs">
-            When you have completed the translation, email your final file to{' '}
-            <a href="mailto:info@latranslation.com" className="underline">info@latranslation.com</a>{' '}
-            with the job reference number in the subject line. Your coordinator will upload it and notify the client.
-          </p>
-        </div>
+        {/* Submit translation */}
+        {canSubmitWork && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Submit Your Translation</h2>
+            <p className="text-sm text-gray-500 mb-4">Upload your completed file. Your coordinator will review and deliver it to the client.</p>
 
-        <div className="text-center text-xs text-gray-400">
+            {uploadDone || alreadySubmitted ? (
+              <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                Translation submitted — your coordinator will review shortly.
+              </div>
+            ) : (
+              <>
+                <input ref={fileRef} type="file" className="hidden" accept=".docx,.doc,.pdf,.txt,.xlsx,.xls" onChange={handleUpload} />
+                <Button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  variant="outline"
+                  className="w-full border-dashed h-16 text-gray-500 hover:text-gray-700"
+                >
+                  {uploading
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Uploading…</>
+                    : <><Upload className="h-4 w-4 mr-2" /> Click to upload completed translation</>
+                  }
+                </Button>
+                {uploadError && (
+                  <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> {uploadError}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Submit invoice */}
+        {canSubmitInvoice && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="font-semibold text-gray-900 mb-1">Submit Invoice</h2>
+            <p className="text-sm text-gray-500 mb-4">Enter your payment amount. Our team will review and process payment within 30 days of approval.</p>
+            {invoiceDone ? (
+              <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                Invoice submitted — you will be notified once approved.
+              </div>
+            ) : (
+              <form onSubmit={handleInvoiceSubmit} className="space-y-3">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={invoiceAmount}
+                    onChange={(e) => setInvoiceAmount(e.target.value)}
+                    className="pl-6"
+                    required
+                  />
+                </div>
+                <Input
+                  placeholder="Optional note to coordinator"
+                  value={invoiceNote}
+                  onChange={(e) => setInvoiceNote(e.target.value)}
+                  maxLength={500}
+                />
+                {invoiceError && (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> {invoiceError}
+                  </p>
+                )}
+                <Button type="submit" disabled={invoiceSubmitting} className="w-full bg-[#1a1a2e] hover:bg-[#2a2a4e]">
+                  {invoiceSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting…</> : <><Send className="h-4 w-4 mr-2" /> Submit Invoice</>}
+                </Button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* Existing invoice */}
+        {invoice && (
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">
+            <p className="text-sm font-semibold text-gray-900 mb-1">Invoice Submitted</p>
+            <p className="text-sm text-gray-600">
+              ${Number(invoice.amount).toFixed(2)} — <span className="capitalize text-gray-500">{invoice.status}</span>
+            </p>
+          </div>
+        )}
+
+        <div className="text-center text-xs text-gray-400 pb-4">
           Questions? Contact your coordinator at{' '}
           <a href="tel:2133857781" className="text-[#1a1a2e]">(213) 385-7781</a>
         </div>
