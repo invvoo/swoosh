@@ -16,13 +16,23 @@ export async function POST(_req: NextRequest, { params }: Props) {
 
   const service = createServiceClient()
 
-  const { data: job } = await service
+  const { data: job, error: jobErr } = await service
     .from('jobs')
-    .select('id, job_type, status, source_lang, target_lang, document_path, document_name, specialty_multipliers:specialty_id(name)')
+    .select('id, job_type, status, source_lang, target_lang, document_path, document_name, specialty_id')
     .eq('id', jobId)
-    .single() as unknown as { data: Record<string, any> | null }
+    .single() as any
 
-  if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+  if (jobErr || !job) {
+    console.error('[ai-translate] Job fetch error:', jobErr)
+    return NextResponse.json({ error: 'Job not found', detail: jobErr?.message ?? null }, { status: 404 })
+  }
+
+  // Fetch specialty name separately to avoid join issues
+  let specialtyName = 'General'
+  if (job.specialty_id) {
+    const { data: sp } = await service.from('specialty_multipliers').select('name').eq('id', job.specialty_id).maybeSingle() as any
+    if (sp?.name) specialtyName = sp.name
+  }
   if (job.job_type !== 'translation' && !job.document_path) {
     return NextResponse.json({ error: 'Not a translation job or no document' }, { status: 400 })
   }
@@ -45,7 +55,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
   })
 
   // Run translation async (don't await — respond immediately)
-  runTranslation({ jobId, job, service, userId: user.id }).catch((err) => {
+  runTranslation({ jobId, job, specialtyName, service, userId: user.id }).catch((err) => {
     console.error('[ai-translate] Background error:', err)
   })
 
@@ -55,11 +65,13 @@ export async function POST(_req: NextRequest, { params }: Props) {
 async function runTranslation({
   jobId,
   job,
+  specialtyName,
   service,
   userId,
 }: {
   jobId: string
   job: any
+  specialtyName: string
   service: ReturnType<typeof createServiceClient>
   userId: string
 }) {
@@ -79,8 +91,7 @@ async function runTranslation({
     if (!text.trim()) throw new Error('No text could be extracted from the document')
 
     // Call Claude
-    const specialty = (job.specialty_multipliers as any)?.name ?? 'General'
-    const translated = await translateDocument(text, job.source_lang, job.target_lang, specialty)
+    const translated = await translateDocument(text, job.source_lang, job.target_lang, specialtyName)
 
     // Store as plain .txt draft (docx reconstruction can be added later)
     const draftPath = `documents/ai-draft/${jobId}/ai_draft.txt`

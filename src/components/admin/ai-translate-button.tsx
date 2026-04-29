@@ -17,7 +17,7 @@ export function AiTranslateButton({ jobId }: { jobId: string }) {
     const data = await res.json()
     setLoading(false)
     if (!res.ok) {
-      setError(data.error ?? 'AI translation failed')
+      setError(data.detail ? `${data.error}: ${data.detail}` : (data.error ?? 'AI translation failed'))
     } else {
       router.refresh()
     }
