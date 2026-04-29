@@ -275,10 +275,9 @@ function AIRulesSection({ value, onSave }: { value: string; onSave: (key: string
     <section>
       <div className="flex items-center gap-3 mb-2">
         <h2 className="text-lg font-semibold text-gray-900">AI Translation Output Rules</h2>
-        <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-200 rounded px-2 py-0.5 font-medium">Experimental — Future Feature</span>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Define critical output rules that will be passed to the AI translation system. This feature is not yet active — rules defined here will be applied when AI translation is enabled.
+        Define custom rules passed to the AI translation engine for every job — e.g. preferred terminology, formatting constraints, or brand-specific style guidelines.
       </p>
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         {editing ? (

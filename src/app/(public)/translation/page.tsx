@@ -99,10 +99,12 @@ export default function TranslationRequestPage() {
     if (!selected) return
 
     setDetecting(true)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 12000)
     try {
       const fd = new FormData()
       fd.append('document', selected)
-      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd })
+      const res = await fetch('/api/jobs/translation/detect', { method: 'POST', body: fd, signal: controller.signal })
       const data = await res.json()
       const lang: string = data.language ?? 'Unknown'
       const conf: number = data.confidence ?? 0
@@ -117,8 +119,10 @@ export default function TranslationRequestPage() {
         setShowManualSource(true)
       }
     } catch {
+      // Timeout or network error — fall back to manual source language
       setShowManualSource(true)
     } finally {
+      clearTimeout(timeout)
       setDetecting(false)
     }
   }

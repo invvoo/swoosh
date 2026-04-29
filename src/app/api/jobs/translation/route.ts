@@ -7,6 +7,7 @@ import { resolveTranslationRate, resolveCertMinimum } from '@/lib/quote/pricing'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AutoQuoteEstimateEmail } from '@/lib/email/templates/auto-quote-estimate'
 import { render } from '@react-email/components'
+import { notifyAdminNewInquiry } from '@/lib/email/notify-admin'
 
 const CERT_SPECIALTY: Record<string, string> = {
   none: 'General',
@@ -68,8 +69,14 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  const [wordCount, specialtyRow, settingsResult] = await Promise.all([
-    extractWordCount(buffer, file.name),
+  // Word count extraction can time out on large PDFs — proceed without it if so
+  const wordCountOrNull = await Promise.race<number | null>([
+    extractWordCount(buffer, file.name).catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
+  ])
+  const wordCount = wordCountOrNull ?? 0
+
+  const [specialtyRow, settingsResult] = await Promise.all([
     resolveSpecialty(supabase, certificationTpe, specialtyId),
     supabase.from('system_settings').select('key, value').in('key', [
       'translation_minimum_standard',
@@ -92,8 +99,9 @@ export async function POST(req: NextRequest) {
         : 'none')
   const minimum = resolveCertMinimum(certForMinimum, effectiveSourceLang, targetLang, settingsMap)
 
+  // No auto-quote if word count couldn't be extracted or pricing is missing
   let quoteAmount: number | null = null
-  if (pricing.perWordRate !== null && specialtyRow.multiplier !== null) {
+  if (wordCount > 0 && pricing.perWordRate !== null && specialtyRow.multiplier !== null) {
     const q = calculateQuote(wordCount, pricing.perWordRate, specialtyRow.multiplier, specialtyRow.name ?? '', minimum)
     quoteAmount = q.finalAmount
   }
@@ -152,13 +160,26 @@ export async function POST(req: NextRequest) {
 
   await supabase.from('job_status_history').insert({ job_id: job.id, new_status: 'draft' })
 
-  // Fire-and-forget auto-quote email
+  // Fire-and-forget emails (client auto-quote + admin notification)
   sendAutoQuoteEmail({
     clientName, clientEmail, sourceLang: effectiveSourceLang, targetLang,
     certificationTpe: certificationTpe ?? 'none',
     wordCount, estimatedAmount: quoteAmount ?? 0,
     hasMissingPricing: pricing.warning !== null,
   }).catch((err) => console.error('[translation] Auto-quote email error:', err))
+
+  notifyAdminNewInquiry({
+    jobType: 'translation',
+    jobId: job.id,
+    clientName,
+    clientEmail,
+    sourceLang: effectiveSourceLang,
+    targetLang,
+    wordCount,
+    certificationLabel: CERT_LABEL[certificationTpe ?? 'none'],
+    estimatedAmount: quoteAmount ?? 0,
+    missingPricing: pricing.warning,
+  }).catch((err) => console.error('[translation] Admin notify error:', err))
 
   return NextResponse.json({
     jobId: job.id,
