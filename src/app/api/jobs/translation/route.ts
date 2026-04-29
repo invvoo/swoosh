@@ -262,38 +262,48 @@ async function buildAndCreateJob(params: {
 
   const jobId = preAssignedJobId ?? crypto.randomUUID()
 
-  const { data: job, error: jobError } = await supabase
+  const jobPayload = {
+    id: jobId,
+    job_type: 'translation',
+    status: 'draft',
+    client_id: client.id,
+    source_lang: effectiveSourceLang,
+    target_lang: targetLang,
+    specialty_id: specialtyRow.id ?? null,
+    word_count: wordCount,
+    document_path: primaryPath,
+    document_name: primaryName,
+    quote_per_word_rate: pricing.perWordRate ?? null,
+    quote_multiplier: specialtyRow.multiplier ?? null,
+    quote_amount: quoteAmount,
+    quote_rush_days: rushDays,
+    quote_rush_fee_percent: rushFeePercent,
+    quote_rush_amount: rushAmount || null,
+    estimated_turnaround_days: standardDays,
+    requested_delivery_date: requestedDeliveryDays && standardDays
+      ? new Date(Date.now() + requestedDeliveryDays * 86400000).toISOString().slice(0, 10)
+      : null,
+    detected_source_lang: detectedSourceLang ?? null,
+    detected_source_lang_confidence: detectedSourceLangConfidence ?? null,
+    certification_type: certificationTpe ?? null,
+    missing_pricing_warning: pricing.warning ?? null,
+    quote_is_pivot: pricing.isPivot,
+  }
+
+  let { data: job, error: jobError } = await supabase
     .from('jobs')
-    .insert({
-      id: jobId,
-      job_type: 'translation',
-      status: 'draft',
-      client_id: client.id,
-      source_lang: effectiveSourceLang,
-      target_lang: targetLang,
-      specialty_id: specialtyRow.id ?? null,
-      word_count: wordCount,
-      document_path: primaryPath,
-      document_name: primaryName,
-      document_paths: allPaths.length > 1 ? allPaths : null,
-      quote_per_word_rate: pricing.perWordRate ?? null,
-      quote_multiplier: specialtyRow.multiplier ?? null,
-      quote_amount: quoteAmount,
-      quote_rush_days: rushDays,
-      quote_rush_fee_percent: rushFeePercent,
-      quote_rush_amount: rushAmount || null,
-      estimated_turnaround_days: standardDays,
-      requested_delivery_date: requestedDeliveryDays && standardDays
-        ? new Date(Date.now() + requestedDeliveryDays * 86400000).toISOString().slice(0, 10)
-        : null,
-      detected_source_lang: detectedSourceLang ?? null,
-      detected_source_lang_confidence: detectedSourceLangConfidence ?? null,
-      certification_type: certificationTpe ?? null,
-      missing_pricing_warning: pricing.warning ?? null,
-      quote_is_pivot: pricing.isPivot,
-    } as any)
+    .insert({ ...jobPayload, document_paths: allPaths.length > 1 ? allPaths : null } as any)
     .select('id')
     .single()
+
+  // If document_paths column doesn't exist yet (migration pending), retry without it
+  if (jobError?.message?.includes('document_paths')) {
+    ;({ data: job, error: jobError } = await supabase
+      .from('jobs')
+      .insert(jobPayload as any)
+      .select('id')
+      .single())
+  }
 
   if (jobError || !job) {
     console.error('[translation] Job insert error:', jobError)
