@@ -14,9 +14,9 @@ export async function GET(req: NextRequest, { params }: Props) {
   const service = createServiceClient()
   const { data: job } = await service
     .from('jobs')
-    .select('document_path, document_name, ai_draft_path, media_path')
+    .select('document_path, document_name, ai_draft_path')
     .eq('id', jobId)
-    .single()
+    .single() as unknown as { data: { document_path: string | null; document_name: string | null; ai_draft_path: string | null; media_path?: string | null } | null }
 
   const filePath =
     type === 'draft' ? job?.ai_draft_path :

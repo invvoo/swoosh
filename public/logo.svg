@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- 3D prism / right-pointing arrow logo -->
+  <!-- Bottom-left dark face -->
+  <polygon points="8,72 8,8 60,40" fill="#0f1628"/>
+  <!-- Top light face highlight -->
+  <polygon points="8,8 60,40 44,8" fill="#2a3a6e"/>
+  <!-- White inner cutout for depth -->
+  <polygon points="20,20 20,60 48,40" fill="#ffffff"/>
+  <!-- Inner shadow tip -->
+  <polygon points="29,29 29,51 42,40" fill="#1a1a2e"/>
+</svg>
