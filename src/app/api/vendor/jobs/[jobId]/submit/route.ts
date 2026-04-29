@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { notifyAdmin } from '@/lib/email/notify-admin'
 
 interface Props { params: Promise<{ jobId: string }> }
 
@@ -53,6 +54,13 @@ export async function POST(req: NextRequest, { params }: Props) {
     new_status: 'in_progress',
     note: 'Vendor submitted final translation',
   } as any)
+
+  // Notify admin that vendor has submitted
+  notifyAdmin({
+    subject: `Vendor Submitted Translation — Job ${jobId.slice(0, 8).toUpperCase()}`,
+    jobId,
+    message: `${user.email} has uploaded their completed translation. Review it in the admin portal and deliver to the client.`,
+  }).catch((err: unknown) => console.error('[vendor/submit] Admin notify failed:', err))
 
   return NextResponse.json({ ok: true })
 }
