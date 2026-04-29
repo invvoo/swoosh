@@ -19,13 +19,20 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { adjustedAmount, note } = z.object({
+  const { adjustedAmount, note, wordCount, perWordRate } = z.object({
     adjustedAmount: z.number().positive(),
     note: z.string().optional(),
+    wordCount: z.number().int().positive().optional(),
+    perWordRate: z.number().positive().optional(),
   }).parse(body)
 
   const service = createServiceClient()
-  await service.from('jobs').update({ quote_adjusted_amount: adjustedAmount, employee_notes: note ?? null }).eq('id', jobId)
+  await service.from('jobs').update({
+    quote_adjusted_amount: adjustedAmount,
+    employee_notes: note ?? null,
+    ...(wordCount != null ? { word_count: wordCount } : {}),
+    ...(perWordRate != null ? { quote_per_word_rate: perWordRate } : {}),
+  }).eq('id', jobId)
   return NextResponse.json({ ok: true })
 }
 
