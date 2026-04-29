@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signToken } from '@/lib/tokens'
+import { autoClaimJob } from '@/lib/admin/auto-claim'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { DeliveryReadyEmail } from '@/lib/email/templates/delivery-ready'
 import { render as renderAsync } from '@react-email/components'
@@ -83,6 +84,8 @@ export async function POST(req: NextRequest, { params }: Props) {
 
     await service.from('jobs').update({ delivery_email_sent_at: new Date().toISOString() }).eq('id', jobId)
   }
+
+  await autoClaimJob(service, jobId, user.id)
 
   return NextResponse.json({ ok: true })
 }

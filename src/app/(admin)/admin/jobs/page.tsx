@@ -6,26 +6,32 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { JobActionsDropdown } from '@/components/admin/job-actions-dropdown'
+import { HandlerBadge } from '@/components/admin/handler-badge'
+import { getHandlerColor } from '@/lib/handler-colors'
 
 interface Props {
-  searchParams: Promise<{ type?: string; status?: string; q?: string }>
+  searchParams: Promise<{ type?: string; status?: string; q?: string; mine?: string }>
 }
 
 export default async function JobsPage({ searchParams }: Props) {
-  const { type, status, q } = await searchParams
+  const { type, status, q, mine } = await searchParams
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
   const isArchived = status === 'archived'
+  const isMine = mine === '1'
 
-  let query = supabase
+  let query = (supabase as any)
     .from('jobs')
-    .select('id, job_type, status, created_at, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, invoice_number, clients(contact_name, email)')
+    .select('id, job_type, status, created_at, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, invoice_number, handled_by, clients(contact_name, email), handler:employees!jobs_handled_by_fkey(id, full_name)')
     .order('created_at', { ascending: false })
     .limit(100)
 
   if (type) query = query.eq('job_type', type as 'translation' | 'interpretation' | 'equipment_rental' | 'notary')
 
-  if (isArchived) {
+  if (isMine && user) {
+    query = query.eq('handled_by', user.id)
+  } else if (isArchived) {
     query = query.in('status', ['complete', 'cancelled'])
   } else if (status) {
     query = query.eq('status', status)
@@ -43,6 +49,17 @@ export default async function JobsPage({ searchParams }: Props) {
       )
     : (jobs ?? [])
 
+  const filters = [
+    { label: 'Active', href: '/admin/jobs', key: 'active' },
+    { label: 'Mine', href: '/admin/jobs?mine=1', key: 'mine' },
+    { label: 'Translation', href: '/admin/jobs?type=translation', key: 'translation' },
+    { label: 'Interpretation', href: '/admin/jobs?type=interpretation', key: 'interpretation' },
+    { label: 'Equipment Rental', href: '/admin/jobs?type=equipment_rental', key: 'equipment_rental' },
+    { label: 'Notary', href: '/admin/jobs?type=notary', key: 'notary' },
+    { label: 'Transcription', href: '/admin/jobs?type=transcription', key: 'transcription' },
+    { label: 'Archived', href: '/admin/jobs?status=archived', key: 'archived' },
+  ]
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -57,18 +74,11 @@ export default async function JobsPage({ searchParams }: Props) {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {[
-          { label: 'Active', href: '/admin/jobs', key: 'active' },
-          { label: 'Translation', href: '/admin/jobs?type=translation', key: 'translation' },
-          { label: 'Interpretation', href: '/admin/jobs?type=interpretation', key: 'interpretation' },
-          { label: 'Equipment Rental', href: '/admin/jobs?type=equipment_rental', key: 'equipment_rental' },
-          { label: 'Notary', href: '/admin/jobs?type=notary', key: 'notary' },
-          { label: 'Transcription', href: '/admin/jobs?type=transcription', key: 'transcription' },
-          { label: 'Archived', href: '/admin/jobs?status=archived', key: 'archived' },
-        ].map((f) => {
+        {filters.map((f) => {
           const isActive =
             f.key === 'archived' ? isArchived :
-            f.key === 'active' ? (!type && !status) :
+            f.key === 'mine' ? isMine :
+            f.key === 'active' ? (!type && !status && !isMine) :
             type === f.key
           return (
             <Link
@@ -79,6 +89,8 @@ export default async function JobsPage({ searchParams }: Props) {
                 isActive
                   ? f.key === 'archived'
                     ? 'bg-gray-600 text-white border-gray-600'
+                    : f.key === 'mine'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-[#1a1a2e] text-white border-[#1a1a2e]'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
               )}
@@ -97,6 +109,7 @@ export default async function JobsPage({ searchParams }: Props) {
               <th className="px-4 py-3 text-left font-medium text-gray-600">Type</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Languages</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600">Handler</th>
               <th className="px-4 py-3 text-right font-medium text-gray-600">Amount</th>
               <th className="px-4 py-3 text-right font-medium text-gray-600">Date</th>
               <th className="px-4 py-3 w-10" />
@@ -105,52 +118,65 @@ export default async function JobsPage({ searchParams }: Props) {
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">No jobs found</td>
+                <td colSpan={8} className="px-4 py-10 text-center text-gray-400">No jobs found</td>
               </tr>
             )}
-            {filtered.map((job: any) => (
-              <tr key={job.id} className="hover:bg-gray-50 transition-colors group">
-                {/* Each data cell is a full-height link so the whole row is clickable */}
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex flex-col px-4 py-3">
-                    <span className="font-medium text-gray-900">{job.clients?.contact_name ?? '—'}</span>
-                    <span className="text-xs text-gray-400">{job.clients?.email}</span>
-                  </Link>
-                </td>
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full text-gray-600">
-                    {JOB_TYPES[job.job_type as keyof typeof JOB_TYPES]}
-                  </Link>
-                </td>
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full text-gray-600">
-                    {job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : '—'}
-                  </Link>
-                </td>
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full">
-                    <Badge className={cn('text-xs', STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-700')}>
-                      {STATUS_LABELS[job.status] ?? job.status}
-                    </Badge>
-                  </Link>
-                </td>
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex items-center justify-end px-4 py-3 h-full text-gray-600">
-                    {job.quote_adjusted_amount || job.quote_amount
-                      ? formatCurrency(Number(job.quote_adjusted_amount ?? job.quote_amount))
-                      : '—'}
-                  </Link>
-                </td>
-                <td className="p-0">
-                  <Link href={`/admin/jobs/${job.id}`} className="flex items-center justify-end px-4 py-3 h-full text-gray-400">
-                    {formatDate(job.created_at)}
-                  </Link>
-                </td>
-                <td className="px-2 py-1 w-10">
-                  <JobActionsDropdown jobId={job.id} status={job.status} />
-                </td>
-              </tr>
-            ))}
+            {filtered.map((job: any) => {
+              const handler = job.handler as { id: string; full_name: string } | null
+              const handlerColor = handler ? getHandlerColor(handler.id) : null
+              return (
+                <tr
+                  key={job.id}
+                  className={cn('hover:bg-gray-50 transition-colors group border-l-2', handlerColor ? handlerColor.row : 'border-l-transparent')}
+                >
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex flex-col px-4 py-3">
+                      <span className="font-medium text-gray-900">{job.clients?.contact_name ?? '—'}</span>
+                      <span className="text-xs text-gray-400">{job.clients?.email}</span>
+                    </Link>
+                  </td>
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full text-gray-600">
+                      {JOB_TYPES[job.job_type as keyof typeof JOB_TYPES]}
+                    </Link>
+                  </td>
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full text-gray-600">
+                      {job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : '—'}
+                    </Link>
+                  </td>
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex items-center px-4 py-3 h-full">
+                      <Badge className={cn('text-xs', STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-700')}>
+                        {STATUS_LABELS[job.status] ?? job.status}
+                      </Badge>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    {handler ? (
+                      <HandlerBadge id={handler.id} name={handler.full_name} size="sm" />
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex items-center justify-end px-4 py-3 h-full text-gray-600">
+                      {job.quote_adjusted_amount || job.quote_amount
+                        ? formatCurrency(Number(job.quote_adjusted_amount ?? job.quote_amount))
+                        : '—'}
+                    </Link>
+                  </td>
+                  <td className="p-0">
+                    <Link href={`/admin/jobs/${job.id}`} className="flex items-center justify-end px-4 py-3 h-full text-gray-400">
+                      {formatDate(job.created_at)}
+                    </Link>
+                  </td>
+                  <td className="px-2 py-1 w-10">
+                    <JobActionsDropdown jobId={job.id} status={job.status} />
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

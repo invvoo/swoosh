@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { autoClaimJob } from '@/lib/admin/auto-claim'
 
 const schema = z.object({
   status: z.string().min(1),
@@ -36,6 +37,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const { error } = await supabase.from('jobs').update(updates as any).eq('id', jobId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await autoClaimJob(supabase as any, jobId, user.id)
 
   await supabase.from('job_status_history').insert({
     job_id: jobId,
