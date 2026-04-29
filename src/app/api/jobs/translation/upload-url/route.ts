@@ -29,7 +29,17 @@ export async function POST(req: NextRequest) {
   }
 
   const fileId = crypto.randomUUID()
-  const storagePath = `documents/raw/pending/${fileId}/${filename}`
+
+  // Sanitize filename for storage path: strip non-ASCII (CJK, accented, etc.) and
+  // replace spaces/specials with hyphens so Supabase Storage accepts the path.
+  const safeFilename = filename
+    .normalize('NFD')                    // decompose accented chars before stripping
+    .replace(/[^\x00-\x7F]/g, '')       // strip non-ASCII
+    .replace(/[^a-zA-Z0-9._-]+/g, '-') // collapse spaces/specials to hyphens
+    .replace(/^-+|-+$/g, '')            // trim leading/trailing hyphens
+    || `file.${ext}`                     // fallback when entire name was non-ASCII
+
+  const storagePath = `documents/raw/pending/${fileId}/${safeFilename}`
 
   const service = createServiceClient()
   const { data, error } = await service.storage
