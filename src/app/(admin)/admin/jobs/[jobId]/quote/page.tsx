@@ -21,6 +21,8 @@ export default function QuoteReviewPage() {
   const [perWordRate, setPerWordRate] = useState('')
   const [multiplier, setMultiplier] = useState('')
   const [adjustedAmount, setAdjustedAmount] = useState('')
+  const [discountAmount, setDiscountAmount] = useState('')
+  const [discountLabel, setDiscountLabel] = useState('')
   const [note, setNote] = useState('')
   const [manualOverride, setManualOverride] = useState(false)
 
@@ -35,7 +37,8 @@ export default function QuoteReviewPage() {
       .select('id, job_type, status, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, quote_per_word_rate, quote_multiplier, employee_notes, clients(contact_name, email), specialty_multipliers:specialty_id(name)')
       .eq('id', jobId)
       .single()
-      .then(({ data }) => {
+      .then(({ data: rawData }) => {
+        const data = rawData as any
         if (!data) return
         setJob(data)
         setWordCount(String(data.word_count ?? ''))
@@ -44,6 +47,8 @@ export default function QuoteReviewPage() {
         const displayed = data.quote_adjusted_amount ?? data.quote_amount
         setAdjustedAmount(displayed != null ? String(displayed) : '')
         setManualOverride(data.quote_adjusted_amount != null)
+        setDiscountAmount(data.discount_amount != null ? String(data.discount_amount) : '')
+        setDiscountLabel(data.discount_label ?? '')
         setNote(data.employee_notes ?? '')
       })
   }, [jobId])
@@ -73,8 +78,10 @@ export default function QuoteReviewPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         adjustedAmount: amount,
-        wordCount: wordCount ? parseInt(wordCount) : undefined,
+        wordCount: wordCount && parseInt(wordCount) > 0 ? parseInt(wordCount) : undefined,
         perWordRate: perWordRate ? parseFloat(perWordRate) : undefined,
+        discountAmount: discountAmount ? parseFloat(discountAmount) : undefined,
+        discountLabel: discountLabel || undefined,
         note,
       }),
     })
@@ -221,6 +228,41 @@ export default function QuoteReviewPage() {
               className="max-w-[160px] font-semibold text-base"
             />
           </div>
+        </div>
+
+        {/* Discount */}
+        <div className="border border-dashed border-gray-200 rounded-lg p-4 space-y-3">
+          <p className="text-sm font-medium text-gray-700">Discount (optional)</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Discount Amount ($)</Label>
+              <div className="flex gap-2 items-center">
+                <span className="text-gray-500">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Discount Description</Label>
+              <Input
+                type="text"
+                value={discountLabel}
+                onChange={(e) => setDiscountLabel(e.target.value)}
+                placeholder="e.g. Returning client discount"
+              />
+            </div>
+          </div>
+          {discountAmount && parseFloat(discountAmount) > 0 && adjustedAmount && (
+            <p className="text-xs text-green-700">
+              Client sees: <strong>{formatCurrency(parseFloat(adjustedAmount))}</strong> – <strong>{formatCurrency(parseFloat(discountAmount))}</strong> = <strong>{formatCurrency(Math.max(0, parseFloat(adjustedAmount) - parseFloat(discountAmount)))}</strong>
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
