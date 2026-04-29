@@ -14,6 +14,8 @@ export default async function JobsPage({ searchParams }: Props) {
   const { type, status, q } = await searchParams
   const supabase = await createClient()
 
+  const isArchived = status === 'archived'
+
   let query = supabase
     .from('jobs')
     .select('id, job_type, status, created_at, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, invoice_number, clients(contact_name, email)')
@@ -21,7 +23,14 @@ export default async function JobsPage({ searchParams }: Props) {
     .limit(100)
 
   if (type) query = query.eq('job_type', type as 'translation' | 'interpretation' | 'equipment_rental' | 'notary')
-  if (status) query = query.eq('status', status)
+
+  if (isArchived) {
+    query = query.in('status', ['complete', 'cancelled'])
+  } else if (status) {
+    query = query.eq('status', status)
+  } else {
+    query = query.not('status', 'in', '(complete,cancelled)')
+  }
 
   const { data: jobs } = await query
 
@@ -48,25 +57,34 @@ export default async function JobsPage({ searchParams }: Props) {
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
-          { label: 'All', href: '/admin/jobs' },
-          { label: 'Translation', href: '/admin/jobs?type=translation' },
-          { label: 'Interpretation', href: '/admin/jobs?type=interpretation' },
-          { label: 'Equipment Rental', href: '/admin/jobs?type=equipment_rental' },
-          { label: 'Notary', href: '/admin/jobs?type=notary' },
-        ].map((f) => (
-          <Link
-            key={f.href}
-            href={f.href}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-sm border transition-colors',
-              (!type && f.label === 'All') || type === f.label.toLowerCase().replace(' ', '_')
-                ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-            )}
-          >
-            {f.label}
-          </Link>
-        ))}
+          { label: 'Active', href: '/admin/jobs', key: 'active' },
+          { label: 'Translation', href: '/admin/jobs?type=translation', key: 'translation' },
+          { label: 'Interpretation', href: '/admin/jobs?type=interpretation', key: 'interpretation' },
+          { label: 'Equipment Rental', href: '/admin/jobs?type=equipment_rental', key: 'equipment_rental' },
+          { label: 'Notary', href: '/admin/jobs?type=notary', key: 'notary' },
+          { label: 'Archived', href: '/admin/jobs?status=archived', key: 'archived' },
+        ].map((f) => {
+          const isActive =
+            f.key === 'archived' ? isArchived :
+            f.key === 'active' ? (!type && !status) :
+            type === f.key
+          return (
+            <Link
+              key={f.href}
+              href={f.href}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                isActive
+                  ? f.key === 'archived'
+                    ? 'bg-gray-600 text-white border-gray-600'
+                    : 'bg-[#1a1a2e] text-white border-[#1a1a2e]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              )}
+            >
+              {f.label}
+            </Link>
+          )
+        })}
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">

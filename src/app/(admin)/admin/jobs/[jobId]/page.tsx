@@ -7,6 +7,7 @@ import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, FileText, User, Clock, AlertTriangle } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
+import { JobFinalActions } from '@/components/admin/job-final-actions'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -16,26 +17,31 @@ export default async function JobDetailPage({ params }: Props) {
   const { jobId } = await params
   const supabase = await createClient()
 
-  const { data: job } = await supabase
-    .from('jobs')
-    .select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name)')
-    .eq('id', jobId)
-    .single()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [
+    { data: job },
+    { data: history },
+    { data: translatorInvoice },
+    { data: adminEmployee },
+  ] = await Promise.all([
+    supabase.from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name)').eq('id', jobId).single(),
+    supabase.from('job_status_history').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
+    supabase.from('translator_invoices').select('*').eq('job_id', jobId).maybeSingle(),
+    user ? supabase.from('employees').select('full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
+  ])
 
   if (!job) notFound()
 
-  const { data: history } = await supabase
-    .from('job_status_history')
-    .select('*')
-    .eq('job_id', jobId)
-    .order('created_at', { ascending: false })
+  // Resolve employee names for history entries
+  const changedByIds = [...new Set((history ?? []).map((h: any) => h.changed_by).filter(Boolean))]
+  let employeeNames: Record<string, string> = {}
+  if (changedByIds.length > 0) {
+    const { data: employees } = await supabase.from('employees').select('id, full_name').in('id', changedByIds)
+    employeeNames = Object.fromEntries((employees ?? []).map((e: any) => [e.id, e.full_name]))
+  }
 
-  const { data: translatorInvoice } = await supabase
-    .from('translator_invoices')
-    .select('*')
-    .eq('job_id', jobId)
-    .maybeSingle()
-
+  const adminName = (adminEmployee as any)?.full_name ?? user?.email ?? 'Admin'
   const displayAmount = job.quote_adjusted_amount ?? job.quote_amount
   const client = job.clients as any
   const translator = job.translators as any
@@ -58,6 +64,7 @@ export default async function JobDetailPage({ params }: Props) {
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
         <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
+        <JobFinalActions jobId={jobId} status={job.status} adminName={adminName} />
         {['draft', 'quote_sent', 'quote_accepted', 'paid', 'ai_review_pending'].includes(job.status) && job.job_type === 'translation' && (
           <Link href={`/admin/jobs/${jobId}/quote`}>
             <Button variant="outline" size="sm">Review / Send Quote</Button>
@@ -210,10 +217,13 @@ export default async function JobDetailPage({ params }: Props) {
             {history.map((h: any) => (
               <div key={h.id} className="flex items-start gap-3 text-sm">
                 <span className="text-gray-400 text-xs w-36 flex-shrink-0">{formatDateTime(h.created_at)}</span>
-                <span className="text-gray-600">
+                <span className="text-gray-600 flex-1">
                   {h.old_status && <span className="line-through text-gray-400 mr-1">{STATUS_LABELS[h.old_status] ?? h.old_status}</span>}
                   → <span className="font-medium">{STATUS_LABELS[h.new_status] ?? h.new_status}</span>
                   {h.note && <span className="text-gray-400 ml-2">— {h.note}</span>}
+                  {h.changed_by && employeeNames[h.changed_by] && (
+                    <span className="text-gray-400 ml-2 text-xs">by {employeeNames[h.changed_by]}</span>
+                  )}
                 </span>
               </div>
             ))}
