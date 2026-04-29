@@ -114,29 +114,59 @@ export default function HomePage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Floating language words — subtle background typography */}
+        {/* Floating language words */}
         <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden>
-          {/* Left column */}
-          <span className="absolute text-white/[0.06] font-bold text-3xl" style={{ top: '8%',  left: '3%',  transform: 'rotate(-8deg)' }}>Hola</span>
-          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '25%', left: '1%',  transform: 'rotate(5deg)' }}>こんにちは</span>
-          <span className="absolute text-white/[0.07] font-bold text-xl" style={{ top: '45%', left: '4%',  transform: 'rotate(-4deg)' }}>Bonjour</span>
-          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '65%', left: '2%',  transform: 'rotate(7deg)' }}>مرحبا</span>
-          <span className="absolute text-white/[0.06] font-bold text-lg" style={{ top: '82%', left: '5%',  transform: 'rotate(-3deg)' }}>Ciao</span>
-          {/* Right column */}
-          <span className="absolute text-white/[0.06] font-bold text-3xl" style={{ top: '6%',  right: '4%', transform: 'rotate(6deg)' }}>你好</span>
-          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '22%', right: '2%', transform: 'rotate(-7deg)' }}>Привет</span>
-          <span className="absolute text-white/[0.07] font-bold text-xl" style={{ top: '42%', right: '3%', transform: 'rotate(4deg)' }}>안녕하세요</span>
-          <span className="absolute text-white/[0.05] font-bold text-2xl" style={{ top: '60%', right: '5%', transform: 'rotate(-5deg)' }}>Olá</span>
-          <span className="absolute text-white/[0.06] font-bold text-lg" style={{ top: '78%', right: '2%', transform: 'rotate(8deg)' }}>Merhaba</span>
+          {/* Far-back large ghost words for depth */}
+          <span className="absolute font-black text-[7rem] leading-none text-white/[0.03]" style={{ top: '-5%', left: '-2%' }}>翻訳</span>
+          <span className="absolute font-black text-[6rem] leading-none text-blue-400/[0.06]" style={{ bottom: '-8%', right: '-1%' }}>Traducción</span>
+
+          {/* Left side — animated */}
+          <span className="lang-float-slow absolute font-bold text-4xl text-white/[0.18]"
+            style={{ top: '7%', left: '3%', '--rot': '-8deg' } as React.CSSProperties}>Hola</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-blue-300/[0.22]"
+            style={{ top: '26%', left: '1%', '--rot': '5deg', animationDelay: '1.2s' } as React.CSSProperties}>こんにちは</span>
+          <span className="lang-float-slow absolute font-bold text-3xl text-white/[0.15]"
+            style={{ top: '47%', left: '3%', '--rot': '-4deg', animationDelay: '2.5s' } as React.CSSProperties}>Bonjour</span>
+          <span className="lang-float-fast absolute font-bold text-3xl text-indigo-300/[0.20]"
+            style={{ top: '66%', left: '2%', '--rot': '7deg', animationDelay: '0.8s' } as React.CSSProperties}>مرحبا</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-white/[0.14]"
+            style={{ top: '84%', left: '5%', '--rot': '-3deg', animationDelay: '3s' } as React.CSSProperties}>Ciao</span>
+
+          {/* Right side — animated */}
+          <span className="lang-float-mid absolute font-bold text-4xl text-blue-200/[0.20]"
+            style={{ top: '5%', right: '3%', '--rot': '6deg', animationDelay: '0.5s' } as React.CSSProperties}>你好</span>
+          <span className="lang-float-slow absolute font-bold text-2xl text-white/[0.16]"
+            style={{ top: '23%', right: '2%', '--rot': '-7deg', animationDelay: '1.8s' } as React.CSSProperties}>Привет</span>
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-300/[0.18]"
+            style={{ top: '43%', right: '2%', '--rot': '4deg', animationDelay: '2.2s' } as React.CSSProperties}>안녕하세요</span>
+          <span className="lang-float-mid absolute font-bold text-3xl text-indigo-200/[0.18]"
+            style={{ top: '62%', right: '4%', '--rot': '-5deg', animationDelay: '0.3s' } as React.CSSProperties}>Olá</span>
+          <span className="lang-float-slow absolute font-bold text-2xl text-white/[0.15]"
+            style={{ top: '80%', right: '3%', '--rot': '8deg', animationDelay: '1.5s' } as React.CSSProperties}>Merhaba</span>
+
           {/* Top scattered */}
-          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ top: '5%',  left: '18%', transform: 'rotate(-2deg)' }}>नमस्ते</span>
-          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ top: '3%',  left: '55%', transform: 'rotate(3deg)' }}>Hallo</span>
-          <span className="absolute text-white/[0.04] font-bold text-2xl" style={{ top: '10%', right: '22%',transform: 'rotate(-6deg)' }}>שלום</span>
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-200/[0.16]"
+            style={{ top: '6%', left: '17%', '--rot': '-3deg', animationDelay: '2s' } as React.CSSProperties}>नमस्ते</span>
+          <span className="lang-float-mid absolute font-bold text-xl text-white/[0.14]"
+            style={{ top: '4%', left: '52%', '--rot': '3deg', animationDelay: '1s' } as React.CSSProperties}>Hallo</span>
+          <span className="lang-float-slow absolute font-bold text-3xl text-indigo-300/[0.18]"
+            style={{ top: '9%', right: '21%', '--rot': '-6deg', animationDelay: '2.8s' } as React.CSSProperties}>שלום</span>
+
           {/* Bottom scattered */}
-          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ bottom: '12%', left: '18%', transform: 'rotate(4deg)' }}>Xin chào</span>
-          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ bottom: '8%',  left: '42%', transform: 'rotate(-3deg)' }}>Γεια σου</span>
-          <span className="absolute text-white/[0.05] font-bold text-lg" style={{ bottom: '14%', right: '20%', transform: 'rotate(5deg)' }}>Sawubona</span>
-          <span className="absolute text-white/[0.04] font-bold text-xl" style={{ bottom: '6%',  right: '38%', transform: 'rotate(-4deg)' }}>ہیلو</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-white/[0.14]"
+            style={{ bottom: '13%', left: '17%', '--rot': '4deg', animationDelay: '1.6s' } as React.CSSProperties}>Xin chào</span>
+          <span className="lang-float-fast absolute font-bold text-2xl text-blue-300/[0.16]"
+            style={{ bottom: '9%', left: '40%', '--rot': '-3deg', animationDelay: '0.7s' } as React.CSSProperties}>Γεια σου</span>
+          <span className="lang-float-slow absolute font-bold text-xl text-white/[0.13]"
+            style={{ bottom: '15%', right: '19%', '--rot': '5deg', animationDelay: '2.3s' } as React.CSSProperties}>Sawubona</span>
+          <span className="lang-float-mid absolute font-bold text-2xl text-indigo-200/[0.17]"
+            style={{ bottom: '7%', right: '36%', '--rot': '-4deg', animationDelay: '1.1s' } as React.CSSProperties}>ہیلو</span>
+
+          {/* Mid-field accent words */}
+          <span className="lang-float-slow absolute font-bold text-xl text-blue-200/[0.13]"
+            style={{ top: '35%', left: '13%', '--rot': '2deg', animationDelay: '3.2s' } as React.CSSProperties}>Shalom</span>
+          <span className="lang-float-fast absolute font-bold text-xl text-white/[0.12]"
+            style={{ top: '55%', right: '14%', '--rot': '-2deg', animationDelay: '0.4s' } as React.CSSProperties}>Привіт</span>
         </div>
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-blue-200 text-sm font-medium mb-6 backdrop-blur-sm">
