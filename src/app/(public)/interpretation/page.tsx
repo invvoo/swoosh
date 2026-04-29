@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { ALL_LANGUAGES } from '@/lib/languages'
 
 const INTERPRETATION_TYPES = [
   { value: 'in_person', label: 'In-Person' },
@@ -16,7 +16,6 @@ const INTERPRETATION_TYPES = [
 ]
 
 export default function InterpretationRequestPage() {
-  const [langPairs, setLangPairs] = useState<any[]>([])
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
     sourceLang: '', targetLang: '', scheduledAt: '', durationMinutes: '60',
@@ -27,19 +26,10 @@ export default function InterpretationRequestPage() {
   const [error, setError] = useState<string | null>(null)
   const [estimatedQuote, setEstimatedQuote] = useState<{ amount: number; billedMinutes: number } | null>(null)
 
-  useEffect(() => {
-    createClient().from('language_pairs').select('id, source_lang, target_lang').eq('is_active', true).order('source_lang')
-      .then(({ data }) => setLangPairs(data ?? []))
-  }, [])
-
   function set(key: string) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }))
   }
-
-  const allLanguages = Array.from(
-    new Set([...langPairs.map((lp) => lp.source_lang), ...langPairs.map((lp) => lp.target_lang)])
-  ).sort()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -149,7 +139,7 @@ export default function InterpretationRequestPage() {
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
                   value={form.sourceLang} onChange={(e) => setForm((f) => ({ ...f, sourceLang: e.target.value, targetLang: '' }))}>
                   <option value="">Select…</option>
-                  {allLanguages.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+                  {ALL_LANGUAGES.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -157,7 +147,7 @@ export default function InterpretationRequestPage() {
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
                   value={form.targetLang} onChange={set('targetLang')}>
                   <option value="">Select…</option>
-                  {allLanguages.filter((lang) => lang !== form.sourceLang).map((lang) => (
+                  {ALL_LANGUAGES.filter((lang) => lang !== form.sourceLang).map((lang) => (
                     <option key={lang} value={lang}>{lang}</option>
                   ))}
                 </select>
