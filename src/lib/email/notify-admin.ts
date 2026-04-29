@@ -15,14 +15,15 @@ const JOB_TYPE_LABELS: Record<string, string> = {
 
 export async function notifyAdminNewInquiry(props: Omit<NewInquiryEmailProps, 'adminUrl'>) {
   if (!ADMIN_EMAIL) {
-    console.warn('[notify-admin] ADMIN_NOTIFY_EMAIL is not set — skipping admin notification')
+    console.error('[notify-admin] ADMIN_NOTIFY_EMAIL env var is not set — skipping admin notification')
     return
   }
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[notify-admin] RESEND_API_KEY is not set — skipping admin notification')
+    console.error('[notify-admin] RESEND_API_KEY env var is not set — skipping admin notification')
     return
   }
 
+  console.log('[notify-admin] Sending to', ADMIN_EMAIL, '| job:', props.jobId)
   const html = await render(NewInquiryEmail({ ...props, adminUrl: ADMIN_URL }))
   const typeLabel = JOB_TYPE_LABELS[props.jobType] ?? props.jobType
 
