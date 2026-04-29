@@ -26,6 +26,9 @@ const SYSTEM_SETTING_LABELS: Record<string, string> = {
   apostille_first: 'Apostille — First Document',
   apostille_additional: 'Apostille — Each Additional',
   apostille_death_certificate: 'Apostille — Death Certificate (Norwalk)',
+  notary_mobile_base_rate: 'Mobile Notary — Base Rate ($, low mileage)',
+  notary_mobile_max_rate: 'Mobile Notary — Max Rate ($, high mileage)',
+  notary_per_signature: 'Notary — Per Signature/Stamp Fee',
 }
 
 const CURRENCY_KEYS = new Set([
@@ -34,6 +37,7 @@ const CURRENCY_KEYS = new Set([
   'interpretation_rate_standard', 'interpretation_rate_court',
   'interpretation_phone_rate', 'notary_flat_rate',
   'apostille_first', 'apostille_additional', 'apostille_death_certificate',
+  'notary_mobile_base_rate', 'notary_mobile_max_rate', 'notary_per_signature',
 ])
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

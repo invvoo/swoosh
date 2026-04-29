@@ -9,13 +9,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { ALL_LANGUAGES } from '@/lib/languages'
 
 type JobType = 'translation' | 'interpretation' | 'equipment_rental' | 'notary'
 
 export default function NewJobPage() {
   const router = useRouter()
   const [jobType, setJobType] = useState<JobType>('translation')
-  const [langPairs, setLangPairs] = useState<any[]>([])
   const [specialties, setSpecialties] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -41,9 +41,7 @@ export default function NewJobPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'in_person' | 'mail'>('in_person')
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.from('language_pairs').select('id, source_lang, target_lang').eq('is_active', true).order('source_lang').then(({ data }) => setLangPairs(data ?? []))
-    supabase.from('specialty_multipliers').select('id, name').eq('is_active', true).order('name').then(({ data }) => setSpecialties(data ?? []))
+    createClient().from('specialty_multipliers').select('id, name').eq('is_active', true).order('name').then(({ data }) => setSpecialties(data ?? []))
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -133,11 +131,9 @@ export default function NewJobPage() {
               <div className="space-y-1.5">
                 <Label>Source Language *</Label>
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
-                  value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+                  value={sourceLang} onChange={(e) => { setSourceLang(e.target.value); setTargetLang('') }}>
                   <option value="">Select…</option>
-                  {Array.from(new Set(langPairs.map((lp) => lp.source_lang))).map((lang) => (
-                    <option key={lang} value={lang}>{lang}</option>
-                  ))}
+                  {ALL_LANGUAGES.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -145,8 +141,8 @@ export default function NewJobPage() {
                 <select required className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
                   value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
                   <option value="">Select…</option>
-                  {langPairs.filter((lp) => !sourceLang || lp.source_lang === sourceLang).map((lp) => (
-                    <option key={lp.id} value={lp.target_lang}>{lp.target_lang}</option>
+                  {ALL_LANGUAGES.filter((l) => l !== sourceLang).map((lang) => (
+                    <option key={lang} value={lang}>{lang}</option>
                   ))}
                 </select>
               </div>
