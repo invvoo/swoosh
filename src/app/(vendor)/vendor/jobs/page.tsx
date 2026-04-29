@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
-import { LogOut, ChevronRight, FileText, AlertCircle, Clock } from 'lucide-react'
+import { LogOut, ChevronRight, FileText, AlertCircle, Clock, Clock3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,12 +29,17 @@ export default function VendorJobsPage() {
   const [translatorName, setTranslatorName] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/vendor/jobs')
       .then(async (r) => {
         const d = await r.json()
-        if (!r.ok) { setError(d.error ?? 'Failed to load'); return }
+        if (!r.ok) {
+          setErrorCode(d.error ?? null)
+          setError(d.message ?? 'Failed to load')
+          return
+        }
         setJobs(d.jobs ?? [])
         setTranslatorName(d.translator?.full_name ?? '')
       })
@@ -66,14 +71,41 @@ export default function VendorJobsPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-8">
-        {error && (
+        {error && errorCode === 'pending_approval' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-start gap-4 mb-6">
+            <Clock3 className="h-6 w-6 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 mb-1">Application Pending Review</p>
+              <p className="text-sm text-amber-700">
+                Your vendor application has been received and is being reviewed by our team.
+                We will contact you once your account is approved.
+              </p>
+            </div>
+          </div>
+        )}
+        {error && errorCode === 'no_account' && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 flex items-start gap-4 mb-6">
+            <AlertCircle className="h-6 w-6 text-gray-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-gray-800 mb-1">No vendor account found</p>
+              <p className="text-sm text-gray-600 mb-3">
+                There is no vendor profile linked to this email address.
+                If you&apos;d like to work with us, please submit an application.
+              </p>
+              <Link href="/vendor/signup" className="text-sm font-medium text-[#1a1a2e] underline">
+                Apply to join our network →
+              </Link>
+            </div>
+          </div>
+        )}
+        {error && errorCode !== 'pending_approval' && errorCode !== 'no_account' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-3 mb-6">
             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
-        <h1 className="text-xl font-bold text-[#1a1a2e] mb-6">Assigned Jobs</h1>
+        {!error && <h1 className="text-xl font-bold text-[#1a1a2e] mb-6">Assigned Jobs</h1>}
 
         {loading && (
           <div className="space-y-3">

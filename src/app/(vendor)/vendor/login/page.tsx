@@ -52,11 +52,20 @@ export default function VendorLoginPage() {
           </Button>
 
           <p className="text-xs text-center text-gray-400 mt-4">
-            Use the Google account registered with L.A. Translation. If you need access, contact your coordinator.
+            Sign in with the Google account associated with your vendor profile.
           </p>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-500">
+            New vendor?{' '}
+            <Link href="/vendor/signup" className="text-[#1a1a2e] font-medium underline">
+              Apply to join our network →
+            </Link>
+          </p>
+        </div>
+
+        <p className="text-center text-xs text-gray-400 mt-4">
           Are you a client?{' '}
           <Link href="/client/login" className="text-[#1a1a2e] underline">Client portal →</Link>
         </p>

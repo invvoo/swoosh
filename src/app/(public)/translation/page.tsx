@@ -312,6 +312,13 @@ export default function TranslationRequestPage() {
           <p className="text-gray-500 text-sm mb-4">
             You will receive a formal quote by email. Review and approve it with a single click — payment is collected securely online.
           </p>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4 text-sm text-left">
+            <p className="font-medium text-gray-700 mb-0.5">Track your order</p>
+            <p className="text-gray-500 text-xs mb-2">Sign in to the client portal to view your quote, accept it, and pay — all in one place.</p>
+            <Link href="/client/login" className="inline-block text-xs font-semibold text-[#1a1a2e] underline">
+              Go to Client Portal →
+            </Link>
+          </div>
           <p className="text-xs text-gray-400">
             Typical response within 2 business hours &nbsp;·&nbsp; Questions? Call{' '}
             <a href="tel:2133857781" className="text-blue-600 font-medium">(213) 385-7781</a>

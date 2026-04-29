@@ -11,12 +11,17 @@ export async function GET() {
 
   const { data: translator } = await service
     .from('translators')
-    .select('id, full_name, language_pairs, specialties')
+    .select('id, full_name, language_pairs, specialties, is_active')
     .eq('email', user.email)
-    .eq('is_active', true)
     .maybeSingle()
 
-  if (!translator) return NextResponse.json({ error: 'No translator account found for this email.' }, { status: 403 })
+  if (!translator) {
+    return NextResponse.json({ error: 'no_account', message: 'No vendor account found for this email.' }, { status: 403 })
+  }
+
+  if (!translator.is_active) {
+    return NextResponse.json({ error: 'pending_approval', message: 'Your application is pending review.' }, { status: 403 })
+  }
 
   const { data: jobs } = await service
     .from('jobs')

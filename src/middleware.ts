@@ -51,7 +51,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Vendor portal routes ──────────────────────────────────────────────────
-  if (pathname.startsWith('/vendor') && !pathname.startsWith('/vendor/login') && !user) {
+  if (
+    pathname.startsWith('/vendor') &&
+    !pathname.startsWith('/vendor/login') &&
+    !pathname.startsWith('/vendor/signup') &&
+    !user
+  ) {
     const url = request.nextUrl.clone()
     url.pathname = '/vendor/login'
     return NextResponse.redirect(url)
