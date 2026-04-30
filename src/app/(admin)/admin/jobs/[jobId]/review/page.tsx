@@ -14,7 +14,7 @@ export default async function ReviewPage({ params }: Props) {
 
   const { data: job } = await (supabase as any)
     .from('jobs')
-    .select('id, status, job_type, document_path, translated_doc_path, ai_draft_path, clients(contact_name, email), translators:assigned_translator_id(full_name, email)')
+    .select('id, status, job_type, document_path, document_paths, translated_doc_path, ai_draft_path, clients(contact_name, email), translators:assigned_translator_id(full_name, email)')
     .eq('id', jobId)
     .single()
 
@@ -60,15 +60,33 @@ export default async function ReviewPage({ params }: Props) {
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-5">
         <h2 className="font-semibold text-gray-900 mb-4 text-sm">Documents</h2>
         <div className="space-y-3">
-          {job.document_path && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Original document</span>
-              <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline font-medium">
-                Open ↗
-              </a>
-            </div>
-          )}
+          {/* Show all uploaded originals */}
+          {(() => {
+            const paths = job.document_paths as { path: string; name: string }[] | null
+            if (paths && paths.length > 0) {
+              return paths.map((d: { path: string; name: string }, i: number) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 truncate max-w-[260px]">{paths.length > 1 ? `Doc ${i + 1}: ${d.name}` : 'Original document'}</span>
+                  <a href={`/api/admin/jobs/${jobId}/document?index=${i}`} target="_blank" rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline font-medium ml-3 shrink-0">
+                    Open ↗
+                  </a>
+                </div>
+              ))
+            }
+            if (job.document_path) {
+              return (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Original document</span>
+                  <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline font-medium">
+                    Open ↗
+                  </a>
+                </div>
+              )
+            }
+            return null
+          })()}
           {job.ai_draft_path && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">AI draft</span>

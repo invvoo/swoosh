@@ -5,7 +5,8 @@ interface Props { params: Promise<{ jobId: string }> }
 
 export async function GET(req: NextRequest, { params }: Props) {
   const { jobId } = await params
-  const type = req.nextUrl.searchParams.get('type') // 'draft' | null (original)
+  const type = req.nextUrl.searchParams.get('type')   // 'draft' | 'translated' | 'media' | null (original)
+  const indexParam = req.nextUrl.searchParams.get('index') // for multi-doc originals
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,17 +15,45 @@ export async function GET(req: NextRequest, { params }: Props) {
   const service = createServiceClient()
   const { data: job } = await service
     .from('jobs')
-    .select('document_path, document_name, ai_draft_path, translated_doc_path')
+    .select('document_path, document_name, ai_draft_path, translated_doc_path, document_paths')
     .eq('id', jobId)
-    .single() as unknown as { data: { document_path: string | null; document_name: string | null; ai_draft_path: string | null; translated_doc_path: string | null; media_path?: string | null } | null }
+    .single() as unknown as {
+      data: {
+        document_path: string | null
+        document_name: string | null
+        ai_draft_path: string | null
+        translated_doc_path: string | null
+        document_paths: { path: string; name: string }[] | null
+        media_path?: string | null
+      } | null
+    }
 
-  const filePath =
-    type === 'draft' ? job?.ai_draft_path :
-    type === 'translated' ? job?.translated_doc_path :
-    type === 'media' ? (job as any)?.media_path :
-    job?.document_path
+  let filePath: string | null | undefined
+
+  if (type === 'draft') {
+    filePath = job?.ai_draft_path
+  } else if (type === 'translated') {
+    filePath = job?.translated_doc_path
+  } else if (type === 'media') {
+    filePath = (job as any)?.media_path
+  } else {
+    // Original document — support multi-file via ?index=N
+    const index = indexParam !== null ? parseInt(indexParam, 10) : 0
+    const paths = job?.document_paths
+    if (paths && Array.isArray(paths) && paths.length > 0 && index < paths.length) {
+      filePath = paths[index]?.path
+    } else {
+      filePath = job?.document_path
+    }
+  }
+
   if (!filePath) {
-    return NextResponse.json({ error: type === 'draft' ? 'AI draft not available yet' : type === 'translated' ? 'No vendor submission yet' : type === 'media' ? 'Media file not found' : 'Document not found' }, { status: 404 })
+    return NextResponse.json({
+      error: type === 'draft' ? 'AI draft not available yet'
+        : type === 'translated' ? 'No vendor submission yet'
+        : type === 'media' ? 'Media file not found'
+        : 'Document not found'
+    }, { status: 404 })
   }
 
   const { data: signedUrl, error } = await service.storage

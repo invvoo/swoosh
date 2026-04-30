@@ -53,6 +53,20 @@ export default async function JobDetailPage({ params }: Props) {
   const client = job.clients as any
   const translator = job.translators as any
   const specialty = job.specialty_multipliers as any
+  const documentPaths = (job as any).document_paths as { path: string; name: string }[] | null
+  // Build the list of original documents to show (use document_paths if available, fall back to document_path)
+  const originalDocs: { label: string; href: string }[] = (() => {
+    if (documentPaths && documentPaths.length > 0) {
+      return documentPaths.map((d, i) => ({
+        label: documentPaths.length === 1 ? 'View Original' : `Doc ${i + 1}: ${d.name}`,
+        href: `/api/admin/jobs/${jobId}/document?index=${i}`,
+      }))
+    }
+    if ((job as any).document_path) {
+      return [{ label: 'View Original', href: `/api/admin/jobs/${jobId}/document` }]
+    }
+    return []
+  })()
 
   return (
     <div className="p-8 max-w-4xl">
@@ -93,12 +107,12 @@ export default async function JobDetailPage({ params }: Props) {
           </>
         )}
 
-        {/* View original document (translation) */}
-        {job.job_type === 'translation' && (job as any).document_path && (
-          <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">View Original</Button>
+        {/* View original document(s) — one button per uploaded file */}
+        {job.job_type === 'translation' && originalDocs.map((doc) => (
+          <a key={doc.href} href={doc.href} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="max-w-[220px] truncate">{doc.label}</Button>
           </a>
-        )}
+        ))}
 
         {/* Record vendor invoice after delivery */}
         {!translatorInvoice && ['delivered', 'complete'].includes(job.status) && (
