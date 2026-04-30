@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle, Loader2 } from 'lucide-react'
+import { CheckCircle, Loader2, Building2, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import { ServiceNavLinks } from '@/components/service-nav-links'
 
 const SERVICE_TYPES = [
   { value: 'notary', label: 'Notarization Only', description: 'Official notarization of your document' },
@@ -105,9 +106,24 @@ export default function NotaryPage() {
       </nav>
 
       <div className="max-w-2xl mx-auto py-12 px-4">
+        {/* Trust banner */}
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-4 py-2.5 mb-6">
+          <Building2 className="h-3.5 w-3.5 text-[#1a1a2e] shrink-0" />
+          <span>In-person notary services at our physical office — <strong>2975 Wilshire Blvd #205, Los Angeles, CA 90010</strong>. Serving clients since 2003.</span>
+        </div>
+
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#1a1a2e]">Notary &amp; Apostille Services</h1>
+          <h1 className="text-3xl font-bold text-[#1a1a2e]">Request Notary Service</h1>
           <p className="text-gray-500 mt-2">Certified document notarization and apostille for international use</p>
+        </div>
+
+        {/* In-person only notice */}
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 mb-6">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800">
+            <p className="font-semibold mb-0.5">Notary services must be completed in person</p>
+            <p>Digital or remote notarization is not available through our office. All notarizations and apostilles require either an in-person visit to our office or a mobile notary appointment at your location in the LA area.</p>
+          </div>
         </div>
 
         {/* Pricing callout */}
@@ -243,6 +259,8 @@ export default function NotaryPage() {
           <p>All translations are notarized, sealed, and stamped — and kept on file for 3 years.</p>
           <p>Questions about Legal Document Assistant services? Call <a href="tel:2133856228" className="text-blue-600 font-medium">(213) 385-6228</a></p>
         </div>
+
+        <ServiceNavLinks current="notary" />
       </div>
     </div>
   )

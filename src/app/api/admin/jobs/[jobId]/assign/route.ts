@@ -4,10 +4,61 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { autoClaimJob } from '@/lib/admin/auto-claim'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { TranslatorAssignedEmail } from '@/lib/email/templates/translator-assigned'
+import { InterpreterAssignedEmail } from '@/lib/email/templates/interpreter-assigned'
 import { render as renderAsync } from '@react-email/components'
 
 interface Props {
   params: Promise<{ jobId: string }>
+}
+
+/** Generate a PO number: PO-YYYYMMDD-NNNN where NNNN is zero-padded day sequence */
+async function generatePoNumber(service: ReturnType<typeof createServiceClient>): Promise<string> {
+  const today = new Date()
+  const datePart = today.toISOString().slice(0, 10).replace(/-/g, '')
+
+  // Count jobs with PO numbers that start with today's prefix to get sequence
+  const prefix = `PO-${datePart}-`
+  const { count } = await service
+    .from('jobs')
+    .select('id', { count: 'exact', head: true })
+    .like('po_number', `${prefix}%`)
+
+  const seq = ((count ?? 0) + 1).toString().padStart(4, '0')
+  return `${prefix}${seq}`
+}
+
+/** Build an iCalendar (.ics) string for the assignment */
+function buildIcs(params: {
+  poNumber: string
+  summary: string
+  description: string
+  location?: string
+  startAt: Date
+  endAt: Date
+}): string {
+  function fmt(d: Date) {
+    return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+  }
+  const uid = `${params.poNumber}@latranslation.com`
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//LA Translation//Assignment//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(params.startAt)}`,
+    `DTEND:${fmt(params.endAt)}`,
+    `SUMMARY:${params.summary}`,
+    `DESCRIPTION:${params.description.replace(/\n/g, '\\n')}`,
+    params.location ? `LOCATION:${params.location}` : '',
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean)
+  return lines.join('\r\n')
 }
 
 export async function POST(req: NextRequest, { params }: Props) {
@@ -26,9 +77,9 @@ export async function POST(req: NextRequest, { params }: Props) {
   const baseUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
 
   const service = createServiceClient()
-  const { data: job } = await service
+  const { data: job } = await (service as any)
     .from('jobs')
-    .select('status, invoice_number, word_count, source_lang, target_lang, document_path, ai_draft_path, clients(email, contact_name)')
+    .select('status, job_type, invoice_number, word_count, source_lang, target_lang, document_path, ai_draft_path, scheduled_at, duration_minutes, location_type, location_details, interpreter_notes, interpretation_mode, interpretation_cert_required, clients(email, contact_name)')
     .eq('id', jobId)
     .single()
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -40,60 +91,141 @@ export async function POST(req: NextRequest, { params }: Props) {
     .single()
   if (!translator) return NextResponse.json({ error: 'Translator not found' }, { status: 404 })
 
+  // Generate PO number for all assignments
+  const poNumber = await generatePoNumber(service)
+
   await service.from('jobs').update({
     assigned_translator_id: translatorId,
     assigned_at: new Date().toISOString(),
     deadline_at: deadlineAt ?? null,
     status: 'assigned',
-  }).eq('id', jobId)
+    po_number: poNumber,
+  } as any).eq('id', jobId)
 
   await service.from('job_status_history').insert({
     job_id: jobId,
     old_status: job.status,
     new_status: 'assigned',
     changed_by: user.id,
-    note: `Assigned to ${translator.full_name}`,
+    note: `Assigned to ${translator.full_name} · PO: ${poNumber}`,
   })
 
   await autoClaimJob(service, jobId, user.id)
 
-  // Send assignment email to translator
+  const isInterpretation = (job as any).job_type === 'interpretation'
+  const client = (job as any).clients as { email: string; contact_name: string } | null
+  const langLabel = (job as any).source_lang && (job as any).target_lang
+    ? `${(job as any).source_lang} → ${(job as any).target_lang}`
+    : 'Interpreting'
+
   try {
-    const html = await renderAsync(TranslatorAssignedEmail({
-      translatorName: translator.full_name,
-      sourceLang: job.source_lang ?? undefined,
-      targetLang: job.target_lang ?? undefined,
-      wordCount: job.word_count ?? undefined,
-      deadlineAt: deadlineAt,
-      invoiceNumber: job.invoice_number ?? undefined,
-      jobPortalUrl: `${baseUrl}/vendor/jobs/${jobId}`,
-      originalDocUrl: `${baseUrl}/api/admin/jobs/${jobId}/document`,
-      aiDraftUrl: job.ai_draft_path ? `${baseUrl}/api/admin/jobs/${jobId}/document?type=draft` : undefined,
-    }))
+    if (isInterpretation) {
+      // ── Interpreter assignment email with iCal ──────────────────────────
 
-    const langLabel = job.source_lang && job.target_lang
-      ? `${job.source_lang} → ${job.target_lang}`
-      : 'Translation'
+      const scheduledAt: Date | null = (job as any).scheduled_at ? new Date((job as any).scheduled_at) : null
+      const durationMin: number = (job as any).duration_minutes ?? 60
 
-    const { data: emailData, error: emailError } = await getResend().emails.send({
-      from: FROM_EMAIL,
-      to: translator.email,
-      subject: `New Job Assigned — ${langLabel}${job.invoice_number ? ` (${job.invoice_number})` : ''}`,
-      html,
-    })
+      const scheduledAtFormatted = scheduledAt
+        ? scheduledAt.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' })
+        : 'To be confirmed'
 
-    await service.from('email_log').insert({
-      job_id: jobId,
-      email_type: 'translator_assigned',
-      recipient: translator.email,
-      subject: `New Job Assigned — ${langLabel}`,
-      resend_id: emailData?.id ?? null,
-      status: emailError ? 'failed' : 'sent',
-      error_message: emailError ? String(emailError) : null,
-    } as any)
+      const endAt = scheduledAt ? new Date(scheduledAt.getTime() + durationMin * 60000) : null
+      const estimatedEndFormatted = endAt
+        ? endAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Los_Angeles' })
+        : undefined
+
+      const html = await renderAsync(InterpreterAssignedEmail({
+        interpreterName: translator.full_name,
+        clientName: client?.contact_name ?? 'Client',
+        poNumber,
+        scheduledAt: scheduledAtFormatted,
+        estimatedEndTime: estimatedEndFormatted,
+        durationMinutes: durationMin,
+        sourceLang: (job as any).source_lang ?? '',
+        targetLang: (job as any).target_lang ?? '',
+        locationType: (job as any).location_type ?? 'in_person',
+        locationDetails: (job as any).location_details ?? undefined,
+        interpretationMode: (job as any).interpretation_mode ?? 'consecutive',
+        certRequired: (job as any).interpretation_cert_required ?? 'none',
+        adminEmail: 'info@latranslation.com',
+        adminPhone: '(213) 385-7781',
+        specialInstructions: (job as any).interpreter_notes ?? undefined,
+        jobPortalUrl: `${baseUrl}/vendor/jobs/${jobId}`,
+      }))
+
+      // Build iCal attachment
+      let icsContent: string | null = null
+      if (scheduledAt && endAt) {
+        icsContent = buildIcs({
+          poNumber,
+          summary: `Interpretation — ${langLabel}`,
+          description: `Client: ${client?.contact_name ?? 'TBD'}\nPO: ${poNumber}\nMode: ${(job as any).interpretation_mode ?? 'consecutive'}\nPortal: ${baseUrl}/vendor/jobs/${jobId}`,
+          location: (job as any).location_details ?? undefined,
+          startAt: scheduledAt,
+          endAt,
+        })
+      }
+
+      const emailPayload: Parameters<ReturnType<typeof getResend>['emails']['send']>[0] = {
+        from: FROM_EMAIL,
+        to: translator.email,
+        subject: `Interpretation Assignment — ${langLabel} · ${poNumber}`,
+        html,
+        ...(icsContent ? {
+          attachments: [{
+            filename: `assignment-${poNumber}.ics`,
+            content: Buffer.from(icsContent).toString('base64'),
+          }],
+        } : {}),
+      }
+
+      const { data: emailData, error: emailError } = await getResend().emails.send(emailPayload)
+
+      await service.from('email_log').insert({
+        job_id: jobId,
+        email_type: 'interpreter_assigned',
+        recipient: translator.email,
+        subject: `Interpretation Assignment — ${langLabel} · ${poNumber}`,
+        resend_id: emailData?.id ?? null,
+        status: emailError ? 'failed' : 'sent',
+        error_message: emailError ? String(emailError) : null,
+      } as any)
+
+    } else {
+      // ── Standard translator assignment email ────────────────────────────
+
+      const html = await renderAsync(TranslatorAssignedEmail({
+        translatorName: translator.full_name,
+        sourceLang: (job as any).source_lang ?? undefined,
+        targetLang: (job as any).target_lang ?? undefined,
+        wordCount: (job as any).word_count ?? undefined,
+        deadlineAt: deadlineAt,
+        invoiceNumber: (job as any).invoice_number ?? poNumber,
+        jobPortalUrl: `${baseUrl}/vendor/jobs/${jobId}`,
+        originalDocUrl: `${baseUrl}/api/admin/jobs/${jobId}/document`,
+        aiDraftUrl: (job as any).ai_draft_path ? `${baseUrl}/api/admin/jobs/${jobId}/document?type=draft` : undefined,
+      }))
+
+      const { data: emailData, error: emailError } = await getResend().emails.send({
+        from: FROM_EMAIL,
+        to: translator.email,
+        subject: `New Job Assigned — ${langLabel}${(job as any).invoice_number ? ` (${(job as any).invoice_number})` : ` · ${poNumber}`}`,
+        html,
+      })
+
+      await service.from('email_log').insert({
+        job_id: jobId,
+        email_type: 'translator_assigned',
+        recipient: translator.email,
+        subject: `New Job Assigned — ${langLabel}`,
+        resend_id: emailData?.id ?? null,
+        status: emailError ? 'failed' : 'sent',
+        error_message: emailError ? String(emailError) : null,
+      } as any)
+    }
   } catch (err) {
     console.error('[assign] Email failed (non-fatal):', err)
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, poNumber })
 }

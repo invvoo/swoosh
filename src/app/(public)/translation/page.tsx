@@ -5,32 +5,39 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/utils'
-import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap, X, Mail, Package, Truck } from 'lucide-react'
-import { calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
+import { Upload, CheckCircle, Loader2, FileText, AlertCircle, CheckCircle2, Zap, X, Mail, Package, Truck, MapPin, Building2, Search } from 'lucide-react'
+import { calcTurnaroundDays, calculateRushFee, calculateReviewQuote, REVIEW_RATE, REVIEW_MINIMUM, REVIEW_WORDS_PER_DAY, type ReviewCertType } from '@/lib/quote/calculator'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ALL_LANGUAGES } from '@/lib/languages'
+import { SORTED_LANGUAGES } from '@/lib/languages'
+import { ServiceNavLinks } from '@/components/service-nav-links'
 
+type ServiceMode = 'translate' | 'review'
 type CertificationType = 'none' | 'general' | 'court'
-type MailingOption = 'none' | 'standard' | 'hard_copy'
+type MailingOption = 'none' | 'standard' | 'hard_copy' | 'pickup'
 
 const MAILING_PRICES = { standard: 10, hard_copy_company: 25, hard_copy_court: 45, fedex: 69 }
 
 function mailingBasePrice(opt: MailingOption, cert: CertificationType): number {
   if (opt === 'standard') return MAILING_PRICES.standard
   if (opt === 'hard_copy') return cert === 'court' ? MAILING_PRICES.hard_copy_court : MAILING_PRICES.hard_copy_company
-  return 0
+  return 0 // 'none' and 'pickup' are free
 }
 
 function totalMailingPrice(opt: MailingOption, cert: CertificationType, fedex: boolean): number {
   const base = mailingBasePrice(opt, cert)
-  return base + (fedex && opt !== 'none' ? MAILING_PRICES.fedex : 0)
+  return base + (fedex && opt !== 'none' && opt !== 'pickup' ? MAILING_PRICES.fedex : 0)
 }
 
 const CERT_OPTIONS: { value: CertificationType; label: string; description: string }[] = [
   { value: 'none', label: 'Standard Translation', description: 'For personal use, internal business documents, or any purpose that does not require official certification.' },
   { value: 'general', label: 'Certified Translation', description: 'Accepted by USCIS, passport offices, government agencies, universities, and employers. Includes a signed certificate of accuracy.' },
   { value: 'court', label: 'Court-Certified Translation', description: 'Required for legal proceedings, court filings, depositions, and litigation. Completed by a court-certified translator.' },
+]
+
+const REVIEW_OPTIONS: { value: ReviewCertType; label: string; description: string; rate: string; minimum: string }[] = [
+  { value: 'company', label: 'Review & Company-Certify', description: 'A certified translator reviews your existing translation and issues a signed certificate of accuracy for USCIS, employers, or universities.', rate: '$0.08/word', minimum: '$50 minimum' },
+  { value: 'court', label: 'Review & Court-Certify', description: 'A court-certified translator reviews and certifies the translation for use in legal proceedings, court filings, and depositions.', rate: '$0.15/word', minimum: '$200 minimum' },
 ]
 
 const CERT_SPECIALTY: Record<CertificationType, string> = {
@@ -53,6 +60,8 @@ function formatBytes(b: number) {
 }
 
 export default function TranslationRequestPage() {
+  const [serviceMode, setServiceMode] = useState<ServiceMode>('translate')
+  const [reviewCertType, setReviewCertType] = useState<ReviewCertType>('company')
   const [langPairs, setLangPairs] = useState<{ id: string; source_lang: string; target_lang: string; per_word_rate: number }[]>([])
   const [specialties, setSpecialties] = useState<{ name: string; multiplier: number }[]>([])
   const [minimums, setMinimums] = useState({ standard: 95, certified: 120, court: 275, courtPremium: 450 })
@@ -106,7 +115,7 @@ export default function TranslationRequestPage() {
       })
   })
 
-  const allTargetLangs = ALL_LANGUAGES.filter((lang) => lang !== form.sourceLang)
+  const allTargetLangs = SORTED_LANGUAGES.filter((lang) => lang !== form.sourceLang)
 
   // ── File handling ────────────────────────────────────────────────────────────
 
@@ -227,6 +236,7 @@ export default function TranslationRequestPage() {
   // ── Rate preview ─────────────────────────────────────────────────────────────
 
   function computePreview(): { perWordRate: number; minimum: number; isPivot: boolean } | null {
+    if (serviceMode === 'review') return null // review uses flat pricing, handled separately
     if (!form.sourceLang || !form.targetLang) return null
     const specialty = specialties.find((s) => s.name === CERT_SPECIALTY[form.certificationTpe])
     if (!specialty) return null
@@ -243,6 +253,17 @@ export default function TranslationRequestPage() {
       if (toEn && fromEn) return { perWordRate: (Number(toEn.per_word_rate) + Number(fromEn.per_word_rate)) * Number(specialty.multiplier), minimum, isPivot: true }
     }
     return null
+  }
+
+  function computeReviewPreview() {
+    if (serviceMode !== 'review') return null
+    const wc = detectedWordCount ?? 0
+    return {
+      rate: REVIEW_RATE[reviewCertType],
+      minimum: REVIEW_MINIMUM[reviewCertType],
+      amount: Math.max(REVIEW_MINIMUM[reviewCertType], Math.ceil(wc * REVIEW_RATE[reviewCertType] * 100) / 100),
+      turnaroundDays: wc > 0 ? Math.max(1, Math.ceil(wc / REVIEW_WORDS_PER_DAY)) : null,
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────────
@@ -269,14 +290,16 @@ export default function TranslationRequestPage() {
         clientEmail: form.clientEmail,
         clientPhone: form.clientPhone || undefined,
         clientCompany: form.clientCompany || undefined,
-        targetLang: form.targetLang,
-        certificationTpe: form.certificationTpe,
+        targetLang: serviceMode === 'review' ? (form.targetLang || form.sourceLang) : form.targetLang,
+        certificationTpe: serviceMode === 'review' ? (reviewCertType === 'court' ? 'court' : 'general') : form.certificationTpe,
         sourceLang: form.sourceLang,
         detectedSourceLang: detectedLang || form.sourceLang,
         detectedSourceLangConfidence: detectedConfidence,
         requestedDeliveryDays: rushEnabled && requestedDays !== '' ? Number(requestedDays) : undefined,
         storagePaths,
         preComputedWordCount: detectedWordCount ?? undefined,
+        serviceMode,
+        reviewCertType: serviceMode === 'review' ? reviewCertType : undefined,
         mailingOption: form.mailingOption !== 'none' ? form.mailingOption : undefined,
         mailingFedex: form.mailingFedex || undefined,
       }),
@@ -343,9 +366,28 @@ export default function TranslationRequestPage() {
       </nav>
 
       <div className="max-w-2xl mx-auto py-12 px-4">
+        {/* Trust banner */}
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-4 py-2.5 mb-6">
+          <Building2 className="h-3.5 w-3.5 text-[#1a1a2e] shrink-0" />
+          <span>A real local office — <strong>2975 Wilshire Blvd #205, Los Angeles</strong> — serving clients in person since 2003.</span>
+        </div>
+
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#1a1a2e]">Request a Translation</h1>
-          <p className="text-gray-500 mt-2">Upload your documents — our system will detect the source language and calculate your quote automatically.</p>
+          <h1 className="text-3xl font-bold text-[#1a1a2e]">Document Translation Quote</h1>
+          <p className="text-gray-500 mt-2">Upload your document — we detect the source language and calculate your quote automatically.</p>
+        </div>
+
+        {/* Service mode toggle */}
+        <div className="flex gap-2 mb-6">
+          <button type="button" onClick={() => setServiceMode('translate')}
+            className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${serviceMode === 'translate' ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+            Translate a Document
+          </button>
+          <button type="button" onClick={() => setServiceMode('review')}
+            className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${serviceMode === 'review' ? 'bg-[#1a1a2e] text-white border-[#1a1a2e]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'}`}>
+            <Search className="h-3.5 w-3.5 inline mr-1.5" />
+            Review &amp; Certify an Existing Translation
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border p-8 space-y-6">
@@ -468,7 +510,7 @@ export default function TranslationRequestPage() {
                     value={form.sourceLang}
                     onChange={(e) => setForm((f) => ({ ...f, sourceLang: e.target.value }))}>
                     <option value="">Select…</option>
-                    {ALL_LANGUAGES.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+                    {SORTED_LANGUAGES.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
                   </select>
                 </div>
               )}
@@ -489,8 +531,8 @@ export default function TranslationRequestPage() {
             </div>
           )}
 
-          {/* Certification */}
-          {uploadedFiles.length > 0 && !detecting && (
+          {/* Certification / Review options */}
+          {uploadedFiles.length > 0 && !detecting && serviceMode === 'translate' && (
             <div>
               <h2 className="font-semibold text-gray-900 mb-1">Certification Needed?</h2>
               <p className="text-xs text-gray-400 mb-3">Different certification levels have different pricing.</p>
@@ -503,7 +545,6 @@ export default function TranslationRequestPage() {
                       onChange={() => setForm((f) => ({
                         ...f,
                         certificationTpe: opt.value,
-                        // reset hard_copy delivery if switching to non-certified
                         mailingOption: opt.value === 'none' && f.mailingOption === 'hard_copy' ? 'none' : f.mailingOption,
                         mailingFedex: opt.value === 'none' && f.mailingOption === 'hard_copy' ? false : f.mailingFedex,
                       }))}
@@ -515,6 +556,46 @@ export default function TranslationRequestPage() {
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Review & Certify — cert type selection */}
+          {uploadedFiles.length > 0 && !detecting && serviceMode === 'review' && (
+            <div>
+              <h2 className="font-semibold text-gray-900 mb-1">Certification Level</h2>
+              <p className="text-xs text-gray-400 mb-3">Choose the certification your reviewd translation needs.</p>
+              <div className="space-y-2">
+                {REVIEW_OPTIONS.map((opt) => (
+                  <label key={opt.value}
+                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${reviewCertType === opt.value ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input type="radio" name="reviewCertType" value={opt.value}
+                      checked={reviewCertType === opt.value}
+                      onChange={() => setReviewCertType(opt.value)}
+                      className="mt-0.5 accent-[#1a1a2e]" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm">{opt.label}</p>
+                        <span className="text-xs font-semibold text-gray-600">{opt.rate} · {opt.minimum}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {(() => {
+                const rp = computeReviewPreview()
+                if (!rp) return null
+                return (
+                  <div className="mt-3 bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700">
+                    <p className="font-semibold text-blue-800">Review Estimate{detectedWordCount ? `: ${formatCurrency(rp.amount)}` : ''}</p>
+                    {detectedWordCount ? (
+                      <p className="text-xs mt-0.5">{detectedWordCount.toLocaleString()} words × ${rp.rate}/word = {formatCurrency(rp.amount)}{rp.amount === rp.minimum ? ' (minimum applied)' : ''}{rp.turnaroundDays ? ` · Est. ${rp.turnaroundDays} business day${rp.turnaroundDays > 1 ? 's' : ''}` : ''}</p>
+                    ) : (
+                      <p className="text-xs mt-0.5">Upload a document above to see an estimate.</p>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -553,8 +634,9 @@ export default function TranslationRequestPage() {
               <div className="space-y-2">
                 {([
                   { value: 'none' as MailingOption, icon: <Mail className="h-4 w-4 text-gray-400" />, label: 'Digital Only (PDF / email)', desc: 'Delivered as a secure download link by email.', price: 'Free' },
+                  { value: 'pickup' as MailingOption, icon: <MapPin className="h-4 w-4 text-gray-400" />, label: 'Pick Up In Person', desc: 'Pick up at our office: 2975 Wilshire Blvd #205, Los Angeles. We will contact you when ready.', price: 'Free' },
                   { value: 'standard' as MailingOption, icon: <Package className="h-4 w-4 text-gray-400" />, label: 'Standard Mail', desc: 'Printed copy mailed to your address via USPS.', price: `+${formatCurrency(MAILING_PRICES.standard)}` },
-                  ...(form.certificationTpe !== 'none' ? [{
+                  ...(form.certificationTpe !== 'none' && serviceMode === 'translate' ? [{
                     value: 'hard_copy' as MailingOption,
                     icon: <Truck className="h-4 w-4 text-gray-400" />,
                     label: 'Hard Copy with Certification & Notary',
@@ -645,6 +727,7 @@ export default function TranslationRequestPage() {
             Every request is reviewed by our team before a formal quote is issued. You accept and pay directly from the quote email — no account required.
           </p>
         </form>
+        <ServiceNavLinks current="translation" />
       </div>
     </div>
   )

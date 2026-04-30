@@ -19,6 +19,12 @@ const schema = z.object({
   locationType: z.enum(['in_person', 'phone', 'video']).optional(),
   locationDetails: z.string().optional(),
   interpreterNotes: z.string().optional(),
+  interpretationMode: z.enum(['consecutive', 'simultaneous']).optional(),
+  interpretationCertRequired: z.enum(['none', 'court', 'medical']).optional(),
+  numInterpreters: z.coerce.number().int().min(1).max(4).optional(),
+  simultaneousSurcharge: z.coerce.number().min(0).optional(),
+  equipmentRentalNeeded: z.string().optional(),
+  equipmentDetails: z.record(z.string(), z.unknown()).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -26,7 +32,12 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const { clientName, clientEmail, clientPhone, clientCompany, ...jobData } = parsed.data
+  const {
+    clientName, clientEmail, clientPhone, clientCompany,
+    interpretationMode, interpretationCertRequired, numInterpreters,
+    simultaneousSurcharge, equipmentRentalNeeded, equipmentDetails,
+    ...jobData
+  } = parsed.data
   const supabase = createServiceClient()
 
   const { data: client, error: clientError } = await supabase
@@ -55,6 +66,12 @@ export async function POST(req: NextRequest) {
       location_type: locationType,
       location_details: jobData.locationDetails ?? null,
       interpreter_notes: jobData.interpreterNotes ?? null,
+      interpretation_mode: interpretationMode ?? null,
+      interpretation_cert_required: interpretationCertRequired ?? null,
+      num_interpreters: numInterpreters ?? null,
+      simultaneous_surcharge: simultaneousSurcharge ?? null,
+      equipment_rental_needed: equipmentRentalNeeded ?? null,
+      equipment_details: equipmentDetails ?? null,
       quote_amount: quote.amount,
       quote_interpretation_rate: quote.rate,
       quote_billed_minutes: quote.billedMinutes,

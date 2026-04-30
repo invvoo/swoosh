@@ -71,3 +71,10 @@ export const COMMON_LANGUAGES: string[] = [
   'Russian', 'Spanish', 'Tagalog', 'Tamil', 'Thai', 'Turkish', 'Ukrainian', 'Urdu',
   'Vietnamese',
 ]
+
+
+/** ALL_LANGUAGES with English sorted to the top, then the rest alphabetically. */
+export const SORTED_LANGUAGES: string[] = [
+  'English',
+  ...ALL_LANGUAGES.filter((l) => l !== 'English'),
+]

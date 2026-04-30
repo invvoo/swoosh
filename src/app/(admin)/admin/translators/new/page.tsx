@@ -18,6 +18,10 @@ export default function NewTranslatorPage() {
   const [form, setForm] = useState({ full_name: '', email: '', phone: '', notes: '' })
   const [langPairs, setLangPairs] = useState<{ source: string; target: string }[]>([{ source: '', target: '' }])
   const [specialties, setSpecialties] = useState<string[]>([])
+  const [courtCertified, setCourtCertified] = useState(false)
+  const [medicalCertified, setMedicalCertified] = useState(false)
+  const [doesConsecutive, setDoesConsecutive] = useState(true)
+  const [doesSimultaneous, setDoesSimultaneous] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,7 +52,11 @@ export default function NewTranslatorPage() {
       language_pairs: pairs,
       specialties,
       notes: form.notes || null,
-    })
+      court_certified: courtCertified,
+      medical_certified: medicalCertified,
+      does_consecutive: doesConsecutive,
+      does_simultaneous: doesSimultaneous,
+    } as any)
     if (err) { setError(err.message); setSubmitting(false) }
     else { router.push('/admin/translators') }
   }
@@ -105,6 +113,23 @@ export default function NewTranslatorPage() {
                 }`}>
                 {s}
               </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-900">Interpreter Qualifications</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              { label: 'Court Certified', checked: courtCertified, set: setCourtCertified },
+              { label: 'Medical Certified (CCHI/NB)', checked: medicalCertified, set: setMedicalCertified },
+              { label: 'Consecutive Interpreting', checked: doesConsecutive, set: setDoesConsecutive },
+              { label: 'Simultaneous Interpreting', checked: doesSimultaneous, set: setDoesSimultaneous },
+            ] as const).map(({ label, checked, set: setter }) => (
+              <label key={label} className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-[#1a1a2e] bg-[#1a1a2e]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                <input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="accent-[#1a1a2e]" />
+                <span className="text-sm font-medium">{label}</span>
+              </label>
             ))}
           </div>
         </div>

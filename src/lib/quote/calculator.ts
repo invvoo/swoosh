@@ -57,3 +57,34 @@ export function calculateRushFee(baseAmount: number, rushDays: number): RushResu
   const totalAmount = Math.ceil((baseAmount + rushAmount) * 100) / 100
   return { rushDays: clampedDays, rushFeePercent, rushAmount, totalAmount }
 }
+
+// ── Review & Certify pricing ──────────────────────────────────────────────────
+
+export type ReviewCertType = 'company' | 'court'
+
+export const REVIEW_RATE: Record<ReviewCertType, number> = {
+  company: 0.08,
+  court: 0.15,
+}
+
+export const REVIEW_MINIMUM: Record<ReviewCertType, number> = {
+  company: 50,
+  court: 200,
+}
+
+/** Standard review capacity: 8,000 words per business day */
+export const REVIEW_WORDS_PER_DAY = 8000
+
+export function calculateReviewQuote(
+  wordCount: number,
+  certType: ReviewCertType
+): { amount: number; minimumApplied: boolean; turnaroundDays: number } {
+  const rate = REVIEW_RATE[certType]
+  const minimum = REVIEW_MINIMUM[certType]
+  const calculated = Math.ceil(wordCount * rate * 100) / 100
+  const minimumApplied = calculated < minimum
+  const amount = minimumApplied ? minimum : calculated
+  const turnaroundDays = Math.max(1, Math.ceil(wordCount / REVIEW_WORDS_PER_DAY))
+  return { amount, minimumApplied, turnaroundDays }
+}
+
