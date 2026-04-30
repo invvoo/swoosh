@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { JobProgressBar } from '@/components/job-progress-bar'
 import { formatCurrency } from '@/lib/utils'
 import { LogOut, ChevronRight, FileText, Headphones, Package, Stamp, AlertCircle } from 'lucide-react'
+import { LogoImage } from '@/components/logo-image'
 
 const JOB_TYPE_ICONS: Record<string, React.ReactNode> = {
   translation: <FileText className="h-4 w-4" />,
@@ -60,8 +61,7 @@ export default function ClientJobsPage() {
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="LA Translation" className="h-7 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <LogoImage className="h-7 w-auto" />
             <span className="font-bold text-[#1a1a2e] text-sm">L.A. Translation</span>
           </Link>
           <div className="flex items-center gap-3">

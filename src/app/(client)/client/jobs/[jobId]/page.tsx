@@ -112,8 +112,9 @@ export default function ClientJobDetailPage() {
   const displayAmount = Math.max(0, baseAmount - discountAmount)
   const langLabel = job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : null
   const reference = job.invoice_number ?? job.id.slice(0, 8).toUpperCase()
-  const isQuotePending = job.status === 'quote_sent'
-  const isAwaitingPayment = job.status === 'quote_accepted'
+  // Suppress the payment card if Stripe just redirected back (webhook may not have fired yet)
+  const isQuotePending = job.status === 'quote_sent' && !justPaid
+  const isAwaitingPayment = job.status === 'quote_accepted' && !justPaid
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -246,27 +247,29 @@ export default function ClientJobDetailPage() {
         )}
 
         {/* In-progress message */}
-        {['paid', 'ai_translating', 'ai_review_pending', 'assigned', 'in_progress'].includes(job.status) && (
+        {(['paid', 'ai_translating', 'ai_review_pending', 'assigned', 'in_progress'].includes(job.status) || (justPaid && job.status === 'quote_accepted')) && (
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 flex items-start gap-3">
             <Clock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 text-sm">
-                {{
+                {({
                   paid: 'Payment Confirmed — Starting Work',
+                  quote_accepted: 'Payment Confirmed — Starting Work',
                   ai_translating: 'Translation In Progress',
                   ai_review_pending: 'Under Professional Review',
                   assigned: 'Translator Assigned',
                   in_progress: 'Translation In Progress',
-                }[job.status]}
+                } as Record<string, string>)[job.status] ?? 'In Progress'}
               </p>
               <p className="text-sm text-blue-700 mt-0.5">
-                {{
-                  paid: 'Your payment is confirmed and we\'re preparing your document.',
+                {({
+                  paid: "Your payment is confirmed and we're preparing your document.",
+                  quote_accepted: "Your payment is confirmed and we're preparing your document.",
                   ai_translating: 'Our AI system is generating the initial draft.',
                   ai_review_pending: 'A professional translator is reviewing and refining the draft.',
                   assigned: 'Your translator is working on the document.',
                   in_progress: 'Your translation is in progress.',
-                }[job.status]}
+                } as Record<string, string>)[job.status] ?? "We're working on your order."}
               </p>
               {job.estimated_turnaround_days && (
                 <p className="text-xs text-blue-600 mt-1">

@@ -9,16 +9,25 @@ interface Props {
   jobId: string
   status: string
   adminName: string
+  jobType?: string
 }
 
 const FINAL_STATUSES = ['complete', 'cancelled']
 
-export function JobFinalActions({ jobId, status, adminName }: Props) {
+// For translations, only allow Mark Complete after delivered
+function canMarkComplete(jobType: string | undefined, status: string): boolean {
+  if (jobType === 'translation') return status === 'delivered'
+  return !FINAL_STATUSES.includes(status)
+}
+
+export function JobFinalActions({ jobId, status, adminName, jobType }: Props) {
   const router = useRouter()
   const [confirming, setConfirming] = useState<'complete' | 'delete' | null>(null)
   const [loading, setLoading] = useState(false)
 
   if (FINAL_STATUSES.includes(status)) return null
+
+  const showComplete = canMarkComplete(jobType, status)
 
   async function markComplete() {
     setLoading(true)
@@ -73,14 +82,16 @@ export function JobFinalActions({ jobId, status, adminName }: Props) {
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setConfirming('complete')}
-        className="border-green-300 text-green-700 hover:bg-green-50"
-      >
-        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Complete
-      </Button>
+      {showComplete && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setConfirming('complete')}
+          className="border-green-300 text-green-700 hover:bg-green-50"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Complete
+        </Button>
+      )}
       <Button
         size="sm"
         variant="outline"

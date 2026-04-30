@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
-import { ArrowLeft, FileText, User, Clock, AlertTriangle, Sparkles, UserCheck } from 'lucide-react'
+import { ArrowLeft, FileText, User, Clock, AlertTriangle, UserCheck } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
 import { JobFinalActions } from '@/components/admin/job-final-actions'
-import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 import { ClaimJobButton } from '@/components/admin/claim-job-button'
+import { TranslationWorkflowActions } from '@/components/admin/translation-workflow-actions'
+import { AdminNotesPanel } from '@/components/admin/admin-notes-panel'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -69,56 +70,45 @@ export default async function JobDetailPage({ params }: Props) {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
-        <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
-        <JobFinalActions jobId={jobId} status={job.status} adminName={adminName} />
-        {['draft', 'quote_sent', 'quote_accepted', 'paid', 'ai_review_pending'].includes(job.status) && job.job_type === 'translation' && (
-          <Link href={`/admin/jobs/${jobId}/quote`}>
-            <Button variant="outline" size="sm">Review / Send Quote</Button>
-          </Link>
+        {/* Translation: guided primary CTA per status */}
+        {job.job_type === 'translation' && (
+          <TranslationWorkflowActions
+            jobId={jobId}
+            status={job.status}
+            hasDocument={!!(job as any).document_path}
+            hasAiDraft={!!(job as any).ai_draft_path}
+            hasVendorSubmission={!!(job as any).translated_doc_path}
+          />
         )}
-        {['draft', 'quote_sent'].includes(job.status) && job.job_type === 'interpretation' && (
-          <Link href={`/admin/jobs/${jobId}/quote`}>
-            <Button variant="outline" size="sm">Review / Send Quote</Button>
-          </Link>
+
+        {/* Non-translation: sequential status buttons */}
+        {job.job_type !== 'translation' && (
+          <>
+            <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
+            {['draft', 'quote_sent'].includes(job.status) && (
+              <Link href={`/admin/jobs/${jobId}/quote`}>
+                <Button variant="outline" size="sm">Review / Edit Quote</Button>
+              </Link>
+            )}
+          </>
         )}
-        {['paid', 'ai_review_pending', 'ai_failed', 'assigned'].includes(job.status) && (
-          <Link href={`/admin/jobs/${jobId}/assign`}>
-            <Button variant="outline" size="sm">Assign Translator</Button>
-          </Link>
+
+        {/* View original document (translation) */}
+        {job.job_type === 'translation' && (job as any).document_path && (
+          <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">View Original</Button>
+          </a>
         )}
-        {['in_progress', 'assigned'].includes(job.status) && job.job_type === 'translation' && (
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
-            <Button variant="outline" size="sm">Upload & Deliver</Button>
-          </Link>
-        )}
+
+        {/* Record vendor invoice after delivery */}
         {!translatorInvoice && ['delivered', 'complete'].includes(job.status) && (
           <Link href={`/admin/jobs/${jobId}/invoice`}>
             <Button variant="outline" size="sm">Record Vendor Invoice</Button>
           </Link>
         )}
-        {job.job_type === 'translation' && (job as any).document_path && (
-          <a href={`/api/admin/jobs/${jobId}/document`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm">View Document</Button>
-          </a>
-        )}
-        {job.job_type === 'translation' && (job as any).document_path &&
-          !['ai_translating', 'ai_review_pending', 'assigned', 'in_progress', 'delivered', 'complete'].includes(job.status) && (
-          <AiTranslateButton jobId={jobId} />
-        )}
-        {job.job_type === 'translation' && (job as any).translated_doc_path && !['delivered', 'complete'].includes(job.status) && (
-          <a href={`/api/admin/jobs/${jobId}/document?type=translated`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-green-200 text-green-700 hover:bg-green-50">
-              View Vendor Submission
-            </Button>
-          </a>
-        )}
-        {job.job_type === 'translation' && (job as any).ai_draft_path && (
-          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-              <Sparkles className="h-3.5 w-3.5" /> View AI Draft
-            </Button>
-          </a>
-        )}
+
+        {/* Final actions: Mark Complete (translation only after delivered) + Not Proceeding */}
+        <JobFinalActions jobId={jobId} status={job.status} adminName={adminName} jobType={job.job_type} />
       </div>
 
       {/* Handler assignment */}
@@ -333,6 +323,8 @@ export default async function JobDetailPage({ params }: Props) {
           </div>
         </div>
       )}
+
+      <AdminNotesPanel jobId={jobId} initialNotes={(job as any).employee_notes ?? null} />
     </div>
   )
 }
