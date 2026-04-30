@@ -10,10 +10,15 @@ export async function extractText(buffer: Buffer, filename: string): Promise<str
   }
 
   if (ext === 'pdf') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string; numpages: number }>
-    const data = await pdfParse(buffer)
-    return data.text
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string; numpages: number }>
+      const data = await pdfParse(buffer)
+      return data.text
+    } catch (e) {
+      console.warn('[word-counter] pdf-parse failed, returning empty text:', (e as Error).message)
+      return ''
+    }
   }
 
   return buffer.toString('utf-8')
