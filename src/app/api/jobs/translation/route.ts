@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
-import { extractWordCount } from '@/lib/pdf/word-counter'
+import { extractWordCountWithFallback } from '@/lib/pdf/word-counter'
 import { calculateQuote, calcTurnaroundDays, calculateRushFee } from '@/lib/quote/calculator'
 import { resolveTranslationRate, resolveCertMinimum } from '@/lib/quote/pricing'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
@@ -98,8 +98,8 @@ async function handleJson(req: NextRequest) {
         if (error || !data) return 0
         const buffer = Buffer.from(await data.arrayBuffer())
         return await Promise.race<number>([
-          extractWordCount(buffer, name).catch(() => 0),
-          new Promise<number>((resolve) => setTimeout(() => resolve(0), 20000)),
+          extractWordCountWithFallback(buffer, name).catch(() => 0),
+          new Promise<number>((resolve) => setTimeout(() => resolve(0), 45000)),
         ])
       } catch {
         return 0
@@ -155,8 +155,8 @@ async function handleFormData(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer())
 
   const wordCountOrNull = await Promise.race<number | null>([
-    extractWordCount(buffer, file.name).catch(() => null),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 25000)),
+    extractWordCountWithFallback(buffer, file.name).catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 45000)),
   ])
   const wordCount = wordCountOrNull ?? 0
 
@@ -348,7 +348,9 @@ async function buildAndCreateJob(params: {
     clientName, clientEmail, sourceLang: effectiveSourceLang, targetLang,
     certificationTpe: certificationTpe ?? 'none',
     wordCount, estimatedAmount: quoteAmount ?? 0,
-    hasMissingPricing: pricing.warning !== null,
+    // Show "needs review" if: no pricing for this language pair, OR word count couldn't be extracted
+    hasMissingPricing: pricing.warning !== null || wordCount === 0,
+    unreadableDocument: wordCount === 0,
   }).catch((err) => console.error('[translation] Auto-quote email error:', err))
 
   notifyAdminNewInquiry({
@@ -383,6 +385,7 @@ async function resolveSpecialty(
 async function sendAutoQuoteEmail(params: {
   clientName: string; clientEmail: string; sourceLang: string; targetLang: string
   certificationTpe: string; wordCount: number; estimatedAmount: number; hasMissingPricing: boolean
+  unreadableDocument: boolean
 }) {
   if (!process.env.RESEND_API_KEY) {
     console.error('[translation] RESEND_API_KEY not set — skipping client auto-quote email')
@@ -395,6 +398,7 @@ async function sendAutoQuoteEmail(params: {
     certificationLabel: CERT_LABEL[params.certificationTpe] ?? 'Standard',
     wordCount: params.wordCount, estimatedAmount: params.estimatedAmount,
     hasMissingPricing: params.hasMissingPricing,
+    unreadableDocument: params.unreadableDocument,
   }))
   const { data, error } = await getResend().emails.send({
     from: FROM_EMAIL, to: params.clientEmail,

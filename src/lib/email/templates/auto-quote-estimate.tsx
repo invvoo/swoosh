@@ -11,6 +11,7 @@ interface AutoQuoteEstimateEmailProps {
   wordCount?: number            // translation only
   estimatedAmount: number       // 0 if pricing is missing
   hasMissingPricing: boolean    // if true, show different message
+  unreadableDocument?: boolean  // true when word count could not be extracted from document
   // interpretation specific
   scheduledAt?: string          // formatted date/time string
   durationMinutes?: number
@@ -26,6 +27,7 @@ export function AutoQuoteEstimateEmail({
   wordCount,
   estimatedAmount,
   hasMissingPricing,
+  unreadableDocument,
   scheduledAt,
   durationMinutes,
   locationType,
@@ -88,10 +90,12 @@ export function AutoQuoteEstimateEmail({
           {hasMissingPricing ? (
             <Section style={{ backgroundColor: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 8, padding: '16px 24px', margin: '24px 0' }}>
               <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#92400e', margin: '0 0 6px' }}>
-                Pricing Review Required
+                {unreadableDocument ? 'Quote Pending — Document Review Required' : 'Pricing Review Required'}
               </Text>
               <Text style={{ color: '#78350f', fontSize: 14, margin: 0 }}>
-                Our team will need to review your request to determine pricing. We&apos;ll send you a quote by email.
+                {unreadableDocument
+                  ? 'We were unable to automatically read your document to calculate an estimate. Our team will review it manually and send you a formal quote by email shortly.'
+                  : 'Our team will need to review your request to determine pricing. We’ll send you a quote by email.'}
               </Text>
             </Section>
           ) : (
