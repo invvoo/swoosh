@@ -38,6 +38,8 @@ const jsonSchema = z.object({
   mailingFedex: z.boolean().optional(),
   // New: array of pre-uploaded Storage paths
   storagePaths: z.array(z.object({ path: z.string().min(1), name: z.string().min(1) })).min(1),
+  // Optional pre-computed word count from the detect endpoint (skips re-download)
+  preComputedWordCount: z.coerce.number().int().min(0).optional(),
 }).refine(
   (d) => d.sourceLang || d.detectedSourceLang,
   { message: 'sourceLang or detectedSourceLang is required' },
@@ -84,12 +86,19 @@ async function handleJson(req: NextRequest) {
     targetLang, certificationTpe, specialtyId,
     detectedSourceLang, detectedSourceLangConfidence,
     requestedDeliveryDays, storagePaths,
+    preComputedWordCount,
     mailingOption, mailingFedex,
   } = parsed.data
 
   const effectiveSourceLang = parsed.data.sourceLang || detectedSourceLang!
   const supabase = createServiceClient()
 
+  // If the client already counted words via the detect endpoint, trust it and skip re-download
+  let wordCount: number
+  if (preComputedWordCount && preComputedWordCount > 0) {
+    console.log(`[translation] using pre-computed word count: ${preComputedWordCount}`)
+    wordCount = preComputedWordCount
+  } else {
   // Download all files from Storage and count words (with timeout per file)
   const wordCounts = await Promise.all(
     storagePaths.map(async ({ path, name }) => {
@@ -115,8 +124,9 @@ async function handleJson(req: NextRequest) {
       }
     })
   )
-  const wordCount = wordCounts.reduce((a, b) => a + b, 0)
+  wordCount = wordCounts.reduce((a, b) => a + b, 0)
   console.log(`[translation] total word count: ${wordCount}`)
+  } // end else (no pre-computed count)
 
   return buildAndCreateJob({
     supabase, effectiveSourceLang, targetLang,

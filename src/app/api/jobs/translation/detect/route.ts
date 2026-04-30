@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { detectLanguage } from '@/lib/ai/detect-language'
+import { extractWordCountWithFallback } from '@/lib/pdf/word-counter'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,9 +32,15 @@ export async function POST(req: NextRequest) {
       text = buffer.toString('utf-8').slice(0, 800)
     }
 
-    const { language, confidence } = await detectLanguage(text)
-    return NextResponse.json({ language, confidence })
+    // Run language detection and word count in parallel
+    // Word count uses Claude fallback for scanned PDFs / images
+    const [{ language, confidence }, wordCount] = await Promise.all([
+      detectLanguage(text),
+      extractWordCountWithFallback(buffer, file.name).catch(() => 0),
+    ])
+
+    return NextResponse.json({ language, confidence, wordCount })
   } catch {
-    return NextResponse.json({ language: 'Unknown', confidence: 0 })
+    return NextResponse.json({ language: 'Unknown', confidence: 0, wordCount: 0 })
   }
 }

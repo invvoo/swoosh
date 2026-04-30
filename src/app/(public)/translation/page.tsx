@@ -63,6 +63,7 @@ export default function TranslationRequestPage() {
   const [detectedLang, setDetectedLang] = useState<string | null>(null)
   const [detectedConfidence, setDetectedConfidence] = useState(0)
   const [showManualSource, setShowManualSource] = useState(false)
+  const [detectedWordCount, setDetectedWordCount] = useState<number | null>(null)
 
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
@@ -150,8 +151,10 @@ export default function TranslationRequestPage() {
       const data = await res.json()
       const lang = data.language ?? 'Unknown'
       const conf = data.confidence ?? 0
+      const wc: number = data.wordCount ?? 0
       setDetectedLang(lang)
       setDetectedConfidence(conf)
+      if (wc > 0) setDetectedWordCount(wc)
       if (lang !== 'Unknown' && conf >= 0.7) {
         setForm((f) => ({ ...f, sourceLang: lang }))
         setShowManualSource(false)
@@ -211,6 +214,7 @@ export default function TranslationRequestPage() {
       setDetectedLang(null)
       setDetectedConfidence(0)
       setShowManualSource(false)
+      setDetectedWordCount(null)
       setForm((f) => ({ ...f, sourceLang: '' }))
     }
   }
@@ -272,6 +276,7 @@ export default function TranslationRequestPage() {
         detectedSourceLangConfidence: detectedConfidence,
         requestedDeliveryDays: rushEnabled && requestedDays !== '' ? Number(requestedDays) : undefined,
         storagePaths,
+        preComputedWordCount: detectedWordCount ?? undefined,
         mailingOption: form.mailingOption !== 'none' ? form.mailingOption : undefined,
         mailingFedex: form.mailingFedex || undefined,
       }),
@@ -427,9 +432,17 @@ export default function TranslationRequestPage() {
             <div>
               {detecting ? (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Detecting source language…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Analyzing document…
                 </div>
-              ) : detectedLang && !showManualSource ? (
+              ) : detectedWordCount !== null && detectedWordCount > 0 ? (
+                <p className="text-sm text-gray-500 mb-2">
+                  <span className="font-semibold text-gray-800">{detectedWordCount.toLocaleString()} words</span> detected
+                </p>
+              ) : !detecting && detectedLang !== null ? (
+                <p className="text-sm text-amber-600 mb-2">Word count could not be extracted — our team will review and quote manually.</p>
+              ) : null}
+
+              {!detecting && detectedLang && !showManualSource ? (
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
