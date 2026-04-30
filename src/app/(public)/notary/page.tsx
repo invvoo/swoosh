@@ -101,8 +101,9 @@ export default function NotaryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
-        <Link href="/" className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</Link>
+      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
+        <Link href="/" className="text-[#1a1a2e] font-bold text-lg shrink-0">L.A. Translation &amp; Interpretation</Link>
+        <ServiceNavLinks current="notary" position="top" />
       </nav>
 
       <div className="max-w-2xl mx-auto py-12 px-4">
@@ -260,7 +261,7 @@ export default function NotaryPage() {
           <p>Questions about Legal Document Assistant services? Call <a href="tel:2133856228" className="text-blue-600 font-medium">(213) 385-6228</a></p>
         </div>
 
-        <ServiceNavLinks current="notary" />
+        <ServiceNavLinks current="notary" position="bottom" />
       </div>
     </div>
   )

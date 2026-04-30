@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle, Loader2, Building2, AlertCircle, Users, Mic2 } from 'lucide-react'
+import { CheckCircle, Loader2, AlertCircle, Users, Mic2 } from 'lucide-react'
 import Link from 'next/link'
 import { SORTED_LANGUAGES } from '@/lib/languages'
 import { formatCurrency } from '@/lib/utils'
@@ -161,16 +161,11 @@ export default function InterpretationRequestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4">
-        <Link href="/" className="text-[#1a1a2e] font-bold text-lg">L.A. Translation &amp; Interpretation</Link>
+      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
+        <Link href="/" className="text-[#1a1a2e] font-bold text-lg shrink-0">L.A. Translation &amp; Interpretation</Link>
+        <ServiceNavLinks current="interpretation" position="top" />
       </nav>
       <div className="max-w-2xl mx-auto py-12 px-4">
-
-        {/* Trust banner */}
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-4 py-2.5 mb-6">
-          <Building2 className="h-3.5 w-3.5 text-[#1a1a2e] shrink-0" />
-          <span>Court-certified and CCHI/National Board-certified medical interpreters. Serving clients since 2003 from our Los Angeles office.</span>
-        </div>
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#1a1a2e]">Book an Interpreter</h1>
@@ -403,7 +398,7 @@ export default function InterpretationRequestPage() {
           </p>
         </form>
 
-        <ServiceNavLinks current="interpretation" />
+        <ServiceNavLinks current="interpretation" position="bottom" />
       </div>
     </div>
   )
