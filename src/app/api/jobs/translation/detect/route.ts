@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { detectLanguage } from '@/lib/ai/detect-language'
-import { extractWordCountWithFallback } from '@/lib/pdf/word-counter'
+import { detectLanguage, detectLanguageAndWordsViaClaude } from '@/lib/ai/detect-language'
 
 export const maxDuration = 60 // allow Claude fallback time to complete
 
@@ -17,7 +16,7 @@ export async function POST(req: NextRequest) {
     const filename = file.name.toLowerCase()
     const ext = filename.split('.').pop() ?? ''
 
-    // Extract text — isolated try/catch so a pdf-parse crash doesn't abort word count
+    // Extract text — isolated try/catch so a pdf-parse crash doesn't abort the request
     let text = ''
     try {
       if (ext === 'docx' || ext === 'doc') {
@@ -35,25 +34,26 @@ export async function POST(req: NextRequest) {
         text = buffer.toString('utf-8').slice(0, 800)
       }
     } catch (e) {
-      console.warn(`[detect] text extraction failed for "${file.name}" — will use Claude for word count:`, e)
+      console.warn(`[detect] text extraction failed for "${file.name}":`, e)
     }
 
     const textWordCount = text.trim().split(/\s+/).filter((w) => w.length > 0).length
     console.log(`[detect] text extraction got ${textWordCount} words from "${file.name}"`)
 
-    // Always run language detection and word count in parallel.
-    // If text extraction failed/returned too little, Claude handles word count.
-    const wordCountPromise: Promise<number> = textWordCount > 20
-      ? Promise.resolve(textWordCount)
-      : (console.log(`[detect] falling back to Claude for word count on "${file.name}"`),
-         extractWordCountWithFallback(buffer, file.name).catch(() => 0))
+    // If we have enough text, run text-based detection + word count from text in parallel
+    if (textWordCount > 20) {
+      const { language, confidence } = await detectLanguage(text).catch(() => ({ language: 'Unknown', confidence: 0 }))
+      console.log(`[detect] text-based result: lang=${language} conf=${confidence} words=${textWordCount}`)
+      return NextResponse.json({ language, confidence, wordCount: textWordCount })
+    }
 
-    const [{ language, confidence }, wordCount] = await Promise.all([
-      detectLanguage(text).catch(() => ({ language: 'Unknown', confidence: 0 })),
-      wordCountPromise,
-    ])
+    // Not enough text (scanned PDF or image) — use Claude vision to detect language AND count words in one call
+    console.log(`[detect] text too short, using Claude vision for "${file.name}"`)
+    const { language, confidence, wordCount } = await detectLanguageAndWordsViaClaude(buffer, file.name).catch(() => ({
+      language: 'Unknown', confidence: 0, wordCount: 0,
+    }))
 
-    console.log(`[detect] result for "${file.name}": lang=${language} conf=${confidence} words=${wordCount}`)
+    console.log(`[detect] Claude vision result: lang=${language} conf=${confidence} words=${wordCount}`)
     return NextResponse.json({ language, confidence, wordCount })
   } catch (e) {
     console.error('[detect] unexpected error:', e)

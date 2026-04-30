@@ -51,6 +51,70 @@ export async function detectLanguage(text: string): Promise<DetectionResult> {
   }
 }
 
+export type VisionDetectionResult = DetectionResult & { wordCount: number }
+
+const VISION_SUPPORTED: Record<string, 'application/pdf' | 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+}
+
+/**
+ * Uses Claude's document/vision capability to detect the language AND count words
+ * in a single API call. Intended for scanned PDFs and images where text extraction
+ * fails or returns too little content.
+ */
+export async function detectLanguageAndWordsViaClaude(buffer: Buffer, filename: string): Promise<VisionDetectionResult> {
+  const ext = filename.toLowerCase().split('.').pop() ?? ''
+  const mediaType = VISION_SUPPORTED[ext]
+
+  if (!mediaType) {
+    return { language: 'Unknown', confidence: 0, wordCount: 0 }
+  }
+
+  if (buffer.byteLength > 4 * 1024 * 1024) {
+    console.log(`[detect-language] file too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB) — skipping Claude vision`)
+    return { language: 'Unknown', confidence: 0, wordCount: 0 }
+  }
+
+  const base64 = buffer.toString('base64')
+  const content: Anthropic.MessageParam['content'] = mediaType === 'application/pdf'
+    ? [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } } as any,
+        { type: 'text', text: 'Analyze this document. Detect the language of the main text content, then count the total number of words.\n\nRespond with ONLY a JSON object like this (no other text):\n{"language": "Spanish", "confidence": 0.98, "wordCount": 342}\n\nFor Chinese: use "Chinese (Simplified)" for simplified/Mandarin, "Chinese (Traditional)" for traditional, "Cantonese" for Cantonese. For Persian use "Persian (Farsi)".' },
+      ]
+    : [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: 'Analyze this image. Detect the language of the main text content, then count the total number of words visible.\n\nRespond with ONLY a JSON object like this (no other text):\n{"language": "Spanish", "confidence": 0.98, "wordCount": 342}\n\nFor Chinese: use "Chinese (Simplified)" for simplified/Mandarin, "Chinese (Traditional)" for traditional, "Cantonese" for Cantonese. For Persian use "Persian (Farsi)".' },
+      ]
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 64,
+    messages: [{ role: 'user', content }],
+  })
+
+  const block = message.content[0]
+  if (block.type !== 'text') return { language: 'Unknown', confidence: 0, wordCount: 0 }
+
+  const match = block.text.match(/\{[^}]+\}/)
+  if (!match) return { language: 'Unknown', confidence: 0, wordCount: 0 }
+
+  try {
+    const parsed = JSON.parse(match[0]) as { language?: unknown; confidence?: unknown; wordCount?: unknown }
+    const rawLang = typeof parsed.language === 'string' && parsed.language ? parsed.language : 'Unknown'
+    const language = normalizeLanguageName(rawLang)
+    const confidence = typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0
+    const wordCount = typeof parsed.wordCount === 'number' && !isNaN(parsed.wordCount) ? Math.max(0, Math.round(parsed.wordCount)) : 0
+    return { language, confidence, wordCount }
+  } catch {
+    return { language: 'Unknown', confidence: 0, wordCount: 0 }
+  }
+}
+
 // Maps common AI-returned names to the canonical names used in our language_pairs table.
 const LANG_ALIASES: Record<string, string> = {
   'chinese': 'Chinese (Simplified)',
