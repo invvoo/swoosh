@@ -15,6 +15,29 @@ interface Props {
   searchParams: Promise<{ type?: string; status?: string; q?: string; mine?: string }>
 }
 
+interface NextStep {
+  label: string
+  href: string
+  style: string
+}
+
+function getNextStep(job: any): NextStep | null {
+  const id = job.id
+  const s = job.status
+  const isTranslation = job.job_type === 'translation'
+
+  if (s === 'draft') return { label: 'Send Quote →', href: `/admin/jobs/${id}/quote`, style: 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100' }
+  if (s === 'quote_sent') return { label: 'Resend Quote →', href: `/admin/jobs/${id}/quote`, style: 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100' }
+  if (s === 'quote_accepted') return { label: 'Awaiting payment', href: `/admin/jobs/${id}`, style: 'text-gray-500 bg-gray-50 border-gray-200' }
+  if ((s === 'paid' || s === 'ai_failed') && isTranslation) return { label: 'Assign →', href: `/admin/jobs/${id}/assign`, style: 'text-[#1a1a2e] bg-blue-50 border-blue-200 hover:bg-blue-100 font-semibold' }
+  if (s === 'ai_review_pending') return { label: 'Assign Reviewer →', href: `/admin/jobs/${id}/assign`, style: 'text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100' }
+  if (s === 'in_progress' && job.translated_doc_path) return { label: 'Review Submission →', href: `/admin/jobs/${id}/review`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100 font-semibold' }
+  if (s === 'assigned' && job.translated_doc_path) return { label: 'Review Submission →', href: `/admin/jobs/${id}/review`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100 font-semibold' }
+  if (s === 'confirmed') return { label: 'Assign →', href: `/admin/jobs/${id}/assign`, style: 'text-[#1a1a2e] bg-blue-50 border-blue-200 hover:bg-blue-100 font-semibold' }
+  if (s === 'delivered') return { label: 'Mark Complete →', href: `/admin/jobs/${id}`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100' }
+  return null
+}
+
 export default async function JobsPage({ searchParams }: Props) {
   const { type, status, q, mine } = await searchParams
   const supabase = await createClient()
@@ -25,7 +48,7 @@ export default async function JobsPage({ searchParams }: Props) {
 
   let query = (supabase as any)
     .from('jobs')
-    .select('id, job_type, status, created_at, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, invoice_number, handled_by, clients(contact_name, email), handler:employees!jobs_handled_by_fkey(id, full_name)')
+    .select('id, job_type, status, created_at, source_lang, target_lang, word_count, quote_amount, quote_adjusted_amount, invoice_number, handled_by, translated_doc_path, clients(contact_name, email), handler:employees!jobs_handled_by_fkey(id, full_name)')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -116,6 +139,7 @@ export default async function JobsPage({ searchParams }: Props) {
               <th className="px-4 py-3 text-left font-medium text-gray-600">Type</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Languages</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-gray-600">Next Step</th>
               <th className="px-4 py-3 text-left font-medium text-gray-600">Handler</th>
               <th className="px-4 py-3 text-right font-medium text-gray-600">Amount</th>
               <th className="px-4 py-3 text-right font-medium text-gray-600">Date</th>
@@ -125,12 +149,13 @@ export default async function JobsPage({ searchParams }: Props) {
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-gray-400">No jobs found</td>
+                <td colSpan={9} className="px-4 py-10 text-center text-gray-400">No jobs found</td>
               </tr>
             )}
             {filtered.map((job: any) => {
               const handler = job.handler as { id: string; full_name: string } | null
               const handlerColor = handler ? getHandlerColor(handler.id) : null
+              const nextStep = getNextStep(job)
               return (
                 <tr
                   key={job.id}
@@ -160,6 +185,16 @@ export default async function JobsPage({ searchParams }: Props) {
                     </Link>
                   </td>
                   <td className="px-4 py-3">
+                    {nextStep ? (
+                      <Link href={nextStep.href}
+                        className={cn('inline-flex items-center text-xs px-2.5 py-1 rounded-full border whitespace-nowrap transition-colors', nextStep.style)}>
+                        {nextStep.label}
+                      </Link>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     {handler ? (
                       <HandlerBadge id={handler.id} name={handler.full_name} size="sm" />
                     ) : (
@@ -179,7 +214,7 @@ export default async function JobsPage({ searchParams }: Props) {
                     </Link>
                   </td>
                   <td className="px-2 py-1 w-10">
-                    <JobActionsDropdown jobId={job.id} status={job.status} />
+                    <JobActionsDropdown jobId={job.id} status={job.status} jobType={job.job_type} />
                   </td>
                 </tr>
               )

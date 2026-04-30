@@ -88,16 +88,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
     if (hasVendorSubmission) {
       return (
         <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
+          <Link href={`/admin/jobs/${jobId}/review`}>
             <Button size="sm" className="bg-green-700 hover:bg-green-800">
-              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review &amp; Deliver to Client
+              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
-          <a href={`/api/admin/jobs/${jobId}/document?type=translated`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-green-200 text-green-700 hover:bg-green-50">
-              View Submission
-            </Button>
-          </a>
         </div>
       )
     }
@@ -112,16 +107,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
     if (hasVendorSubmission) {
       return (
         <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
+          <Link href={`/admin/jobs/${jobId}/review`}>
             <Button size="sm" className="bg-green-700 hover:bg-green-800">
-              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review &amp; Deliver to Client
+              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
-          <a href={`/api/admin/jobs/${jobId}/document?type=translated`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-green-200 text-green-700 hover:bg-green-50">
-              View Submission
-            </Button>
-          </a>
         </div>
       )
     }

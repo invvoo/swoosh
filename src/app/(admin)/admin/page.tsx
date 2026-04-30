@@ -86,7 +86,7 @@ const ATTENTION_CONFIG: Record<string, { label: string; color: string; icon: Rea
     label: 'Review Submission',
     color: 'bg-green-100 text-green-800 border-green-200',
     icon: <AlertTriangle className="h-3 w-3" />,
-    href: (id) => `/admin/jobs/${id}/deliver`,
+    href: (id) => `/admin/jobs/${id}/review`,
   },
 }
 

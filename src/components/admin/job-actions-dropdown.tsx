@@ -7,18 +7,22 @@ import { MoreVertical, ExternalLink, CheckCircle2, Trash2, Loader2 } from 'lucid
 interface Props {
   jobId: string
   status: string
+  jobType?: string
   /** Where to redirect after delete. Defaults to /admin/jobs */
   afterDelete?: string
 }
 
 const FINAL = ['complete', 'cancelled']
 
-export function JobActionsDropdown({ jobId, status, afterDelete = '/admin/jobs' }: Props) {
+export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/admin/jobs' }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState<'complete' | 'delete' | null>(null)
   const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Translations can only be marked complete after delivery
+  const canMarkComplete = jobType === 'translation' ? status === 'delivered' : !FINAL.includes(status)
 
   // Close on outside click
   useEffect(() => {
@@ -61,6 +65,7 @@ export function JobActionsDropdown({ jobId, status, afterDelete = '/admin/jobs' 
   const isFinal = FINAL.includes(status)
 
   return (
+
     <div ref={ref} className="relative" onClick={stopProp}>
       <button
         onClick={(e) => { stopProp(e); setOpen((o) => !o); setConfirming(null) }}
@@ -121,12 +126,14 @@ export function JobActionsDropdown({ jobId, status, afterDelete = '/admin/jobs' 
               {!isFinal && (
                 <>
                   <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={(e) => { stopProp(e); setConfirming('complete') }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-green-50 text-green-700"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" /> Mark Complete
-                  </button>
+                  {canMarkComplete && (
+                    <button
+                      onClick={(e) => { stopProp(e); setConfirming('complete') }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-green-50 text-green-700"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Mark Complete
+                    </button>
+                  )}
                   <button
                     onClick={(e) => { stopProp(e); setConfirming('delete') }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-red-50 text-red-600"
