@@ -94,19 +94,29 @@ async function handleJson(req: NextRequest) {
   const wordCounts = await Promise.all(
     storagePaths.map(async ({ path, name }) => {
       try {
+        console.log(`[translation] downloading "${name}" from storage: ${path}`)
         const { data, error } = await supabase.storage.from('job-documents').download(path)
-        if (error || !data) return 0
+        if (error || !data) {
+          console.error(`[translation] storage download failed for "${name}":`, error)
+          return 0
+        }
         const buffer = Buffer.from(await data.arrayBuffer())
+        console.log(`[translation] downloaded "${name}" (${(buffer.byteLength / 1024).toFixed(0)} KB)`)
         return await Promise.race<number>([
-          extractWordCountWithFallback(buffer, name).catch(() => 0),
+          extractWordCountWithFallback(buffer, name).catch((e) => {
+            console.error(`[translation] extractWordCountWithFallback threw for "${name}":`, e)
+            return 0
+          }),
           new Promise<number>((resolve) => setTimeout(() => resolve(0), 45000)),
         ])
-      } catch {
+      } catch (e) {
+        console.error(`[translation] word count failed for "${name}":`, e)
         return 0
       }
     })
   )
   const wordCount = wordCounts.reduce((a, b) => a + b, 0)
+  console.log(`[translation] total word count: ${wordCount}`)
 
   return buildAndCreateJob({
     supabase, effectiveSourceLang, targetLang,

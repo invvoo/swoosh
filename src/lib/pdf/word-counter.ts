@@ -32,19 +32,27 @@ export async function extractWordCountWithFallback(buffer: Buffer, filename: str
   // 1. Try standard text extraction first (fast, free)
   try {
     const count = await extractWordCount(buffer, filename)
+    console.log(`[word-counter] text extraction got ${count} words for "${filename}"`)
     if (count > 20) return count  // trust it if we got something meaningful
-  } catch {
-    // fall through to Claude
+    console.log(`[word-counter] count too low (${count}), falling back to Claude`)
+  } catch (e) {
+    console.log(`[word-counter] text extraction threw for "${filename}":`, e)
   }
 
   // 2. Fallback: Claude vision for scanned PDFs / image files
-  return extractWordCountViaClaude(buffer, filename).catch(() => 0)
+  return extractWordCountViaClaude(buffer, filename).catch((e) => {
+    console.error('[word-counter] Claude fallback error:', e)
+    return 0
+  })
 }
 
 async function extractWordCountViaClaude(buffer: Buffer, filename: string): Promise<number> {
   const ext = filename.toLowerCase().split('.').pop() ?? ''
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return 0
+  if (!apiKey) {
+    console.log('[word-counter] ANTHROPIC_API_KEY not set — skipping Claude fallback')
+    return 0
+  }
 
   const SUPPORTED: Record<string, 'application/pdf' | 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'> = {
     pdf: 'application/pdf',
@@ -55,10 +63,17 @@ async function extractWordCountViaClaude(buffer: Buffer, filename: string): Prom
     webp: 'image/webp',
   }
   const mediaType = SUPPORTED[ext]
-  if (!mediaType) return 0
+  if (!mediaType) {
+    console.log(`[word-counter] unsupported extension "${ext}" — skipping Claude fallback`)
+    return 0
+  }
 
   // PDFs larger than ~4 MB risk hitting token limits — cap at 4 MB
-  if (buffer.byteLength > 4 * 1024 * 1024) return 0
+  if (buffer.byteLength > 4 * 1024 * 1024) {
+    console.log(`[word-counter] file too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB) — skipping Claude fallback`)
+    return 0
+  }
+  console.log(`[word-counter] calling Claude Haiku for "${filename}" (${(buffer.byteLength / 1024).toFixed(0)} KB, ${mediaType})`)
 
   const client = new Anthropic({ apiKey })
   const base64 = buffer.toString('base64')
@@ -81,6 +96,7 @@ async function extractWordCountViaClaude(buffer: Buffer, filename: string): Prom
 
   const raw = (response.content[0] as Anthropic.TextBlock).text?.trim() ?? ''
   const count = parseInt(raw.replace(/[^0-9]/g, ''), 10)
+  console.log(`[word-counter] Claude returned "${raw}" → ${isNaN(count) ? 0 : count} words for "${filename}"`)
   return isNaN(count) ? 0 : count
 }
 
