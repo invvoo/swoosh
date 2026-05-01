@@ -12,6 +12,7 @@ import { ClaimJobButton } from '@/components/admin/claim-job-button'
 import { TranslationWorkflowActions } from '@/components/admin/translation-workflow-actions'
 import { AdminNotesPanel } from '@/components/admin/admin-notes-panel'
 import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
+import { AdminJobProgressBar } from '@/components/admin/admin-job-progress-bar'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -81,6 +82,11 @@ export default async function JobDetailPage({ params }: Props) {
         <Badge className={cn('text-xs ml-2', STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-700')}>
           {STATUS_LABELS[job.status] ?? job.status}
         </Badge>
+      </div>
+
+      {/* Progress bar */}
+      <div className="bg-white rounded-lg border border-gray-200 px-6 py-5 mb-6">
+        <AdminJobProgressBar jobType={job.job_type} status={job.status} />
       </div>
 
       {/* Action Buttons */}
