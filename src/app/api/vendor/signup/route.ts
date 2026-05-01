@@ -13,6 +13,8 @@ const schema = z.object({
   perWordRate: z.number().positive().optional(),
   hourlyRate: z.number().positive().optional(),
   notes: z.string().max(1000).optional(),
+  paymentMethod: z.enum(['stripe', 'paypal', 'zelle', 'venmo', 'check', 'other']).default('check'),
+  paymentDetails: z.string().max(500).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const { fullName, email, phone, vendorType, languagePairs, specialties, perWordRate, hourlyRate, notes } = parsed.data
+  const { fullName, email, phone, vendorType, languagePairs, specialties, perWordRate, hourlyRate, notes, paymentMethod, paymentDetails } = parsed.data
 
   const service = createServiceClient()
 
@@ -57,6 +59,8 @@ export async function POST(req: NextRequest) {
       notes: notes ?? null,
       is_active: false,
       applied_at: new Date().toISOString(),
+      payment_method: paymentMethod,
+      payment_details: paymentDetails ?? null,
     } as any)
 
   if (error) {
@@ -82,6 +86,8 @@ export async function POST(req: NextRequest) {
     perWordRate,
     hourlyRate,
     notes,
+    paymentMethod,
+    paymentDetails,
   }).catch((err) => console.error('[vendor-signup] Admin notify error:', err))
 
   return NextResponse.json({ success: true })
@@ -97,6 +103,8 @@ async function notifyAdminNewVendorApplication(params: {
   perWordRate?: number
   hourlyRate?: number
   notes?: string
+  paymentMethod?: string
+  paymentDetails?: string
 }) {
   const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? ''
   if (!ADMIN_EMAIL || !process.env.RESEND_API_KEY) return
@@ -113,6 +121,8 @@ async function notifyAdminNewVendorApplication(params: {
     params.perWordRate != null ? `Per-word rate: $${params.perWordRate.toFixed(4)}` : null,
     params.hourlyRate != null ? `Hourly rate: $${params.hourlyRate.toFixed(2)}/hr` : null,
     params.notes ? `\nMessage:\n${params.notes}` : null,
+    params.paymentMethod ? `\nPayment method: ${params.paymentMethod}` : null,
+    params.paymentDetails ? `Payment details: ${params.paymentDetails}` : null,
   ].filter(Boolean).join('\n')
 
   const adminUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''

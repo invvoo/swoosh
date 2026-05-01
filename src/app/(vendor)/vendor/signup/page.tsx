@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { LogoImage } from '@/components/logo-image'
 import { Button } from '@/components/ui/button'
-import { Loader2, CheckCircle2, Sparkles } from 'lucide-react'
+import { Loader2, CheckCircle2, Sparkles, Zap } from 'lucide-react'
 
 const TRANSLATOR_CERTS = [
   { id: 'ata',       label: 'ATA Certified',                     description: 'American Translators Association' },
@@ -27,6 +27,24 @@ const VENDOR_TYPES = [
 
 const SPECIALTIES = ['Legal', 'Medical', 'Technical', 'Financial', 'General', 'Court Certified', 'USCIS / Immigration']
 
+const PAYMENT_METHODS = [
+  { value: 'stripe',  label: 'Stripe',   hint: 'Fastest — instant 1-click payouts directly to your bank' },
+  { value: 'paypal',  label: 'PayPal',   hint: 'We send payment to your PayPal email' },
+  { value: 'zelle',   label: 'Zelle',    hint: 'We send via Zelle to your phone or email' },
+  { value: 'venmo',   label: 'Venmo',    hint: 'We send to your Venmo handle' },
+  { value: 'check',   label: 'Check',    hint: 'Physical check mailed to your address' },
+  { value: 'other',   label: 'Other',    hint: 'Describe your preferred method' },
+]
+
+const PAYMENT_DETAIL_LABEL: Record<string, string> = {
+  stripe:  '',
+  paypal:  'PayPal email address',
+  zelle:   'Zelle phone number or email',
+  venmo:   'Venmo handle (e.g. @yourname)',
+  check:   'Mailing address',
+  other:   'Payment details / instructions',
+}
+
 export default function VendorSignupPage() {
   const [form, setForm] = useState({
     fullName: '',
@@ -39,6 +57,8 @@ export default function VendorSignupPage() {
     perWordRate: '',
     hourlyRate: '',
     notes: '',
+    paymentMethod: 'stripe',
+    paymentDetails: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,6 +97,8 @@ export default function VendorSignupPage() {
           perWordRate: form.perWordRate ? parseFloat(form.perWordRate) : undefined,
           hourlyRate: form.hourlyRate ? parseFloat(form.hourlyRate) : undefined,
           notes: form.notes || undefined,
+          paymentMethod: form.paymentMethod,
+          paymentDetails: form.paymentDetails || undefined,
         }),
       })
       const data = await res.json()
@@ -120,7 +142,6 @@ export default function VendorSignupPage() {
           <h1 className="text-2xl font-bold text-[#1a1a2e]">Apply as a Vendor</h1>
           <p className="text-gray-500 text-sm mt-1">Translators, Interpreters &amp; Service Providers</p>
 
-          {/* Benefits link */}
           <Link
             href="/vendor/benefits"
             className="inline-flex items-center gap-1.5 mt-3 text-sm text-blue-600 font-medium hover:underline"
@@ -270,6 +291,72 @@ export default function VendorSignupPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e] resize-none"
                 placeholder="Years of experience, certifications, relevant background…"
               />
+            </div>
+
+            {/* Payment preference */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                How would you like to receive payment? <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {PAYMENT_METHODS.map(({ value, label, hint }) => (
+                  <button
+                    key={value} type="button"
+                    onClick={() => setForm((f) => ({ ...f, paymentMethod: value, paymentDetails: '' }))}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${form.paymentMethod === value ? 'border-[#1a1a2e] bg-[#1a1a2e] text-white' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {value === 'stripe' && <Zap className="h-3.5 w-3.5 shrink-0" />}
+                      {label}
+                    </span>
+                    <p className={`text-[10px] mt-0.5 leading-tight ${form.paymentMethod === value ? 'text-white/70' : 'text-gray-400'}`}>{hint}</p>
+                  </button>
+                ))}
+              </div>
+
+              {form.paymentMethod === 'stripe' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800 flex items-start gap-2">
+                  <Zap className="h-4 w-4 shrink-0 mt-0.5 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Connect Stripe after approval</p>
+                    <p className="text-xs text-blue-600 mt-0.5">
+                      Once your application is approved, you will receive a link to connect your Stripe account.
+                      This enables instant 1-click payouts directly to your bank account.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {form.paymentMethod !== 'stripe' && PAYMENT_DETAIL_LABEL[form.paymentMethod] && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {PAYMENT_DETAIL_LABEL[form.paymentMethod]} <span className="text-red-500">*</span>
+                  </label>
+                  {form.paymentMethod === 'check' ? (
+                    <textarea
+                      rows={2}
+                      required
+                      value={form.paymentDetails}
+                      onChange={(e) => setForm((f) => ({ ...f, paymentDetails: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e] resize-none"
+                      placeholder="123 Main St, Los Angeles, CA 90010"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={form.paymentDetails}
+                      onChange={(e) => setForm((f) => ({ ...f, paymentDetails: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                      placeholder={
+                        form.paymentMethod === 'paypal' ? 'you@email.com' :
+                        form.paymentMethod === 'zelle' ? '(213) 555-0100 or you@email.com' :
+                        form.paymentMethod === 'venmo' ? '@yourvenmo' : ''
+                      }
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (

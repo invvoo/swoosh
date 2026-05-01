@@ -1,15 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import PayoutButton from './payout-button'
 import { ApproveInvoiceButton } from './approve-invoice-button'
+import MarkPaidButton from './mark-paid-button'
+
+const METHOD_BADGE: Record<string, { label: string; className: string }> = {
+  stripe: { label: 'Stripe',  className: 'bg-violet-100 text-violet-700' },
+  paypal: { label: 'PayPal',  className: 'bg-blue-100 text-blue-700' },
+  zelle:  { label: 'Zelle',   className: 'bg-purple-100 text-purple-700' },
+  venmo:  { label: 'Venmo',   className: 'bg-sky-100 text-sky-700' },
+  check:  { label: 'Check',   className: 'bg-amber-100 text-amber-700' },
+  other:  { label: 'Manual',  className: 'bg-gray-100 text-gray-600' },
+}
 
 export default async function InvoicesPage() {
   const supabase = await createClient()
 
   const { data: invoices } = await supabase
     .from('translator_invoices')
-    .select('*, translators(full_name, email, stripe_connect_id), jobs(invoice_number, job_type, clients(contact_name))')
+    .select('*, translators(full_name, email, stripe_connect_id, payment_method, payment_details), jobs(invoice_number, job_type, clients(contact_name))')
     .in('status', ['submitted', 'approved', 'queued', 'paid', 'failed'])
     .order('created_at', { ascending: true })
 
@@ -39,22 +48,30 @@ export default async function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-amber-100">
-              {submitted.map((inv: any) => (
-                <tr key={inv.id} className="hover:bg-amber-50/50">
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{inv.translators?.full_name}</p>
-                    <p className="text-xs text-gray-400">{inv.translators?.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {inv.jobs?.invoice_number ?? inv.job_id?.slice(0, 8)}
-                    <p className="text-xs text-gray-400">{inv.jobs?.clients?.contact_name}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(Number(inv.amount))}</td>
-                  <td className="px-4 py-3 text-right">
-                    <ApproveInvoiceButton invoiceId={inv.id} />
-                  </td>
-                </tr>
-              ))}
+              {submitted.map((inv: any) => {
+                const t = inv.translators ?? {}
+                const method = t.payment_method ?? 'check'
+                const badge = METHOD_BADGE[method] ?? METHOD_BADGE.other
+                return (
+                  <tr key={inv.id} className="hover:bg-amber-50/50">
+                    <td className="px-4 py-3">
+                      <p className="font-medium">{t.full_name}</p>
+                      <p className="text-xs text-gray-400">{t.email}</p>
+                      <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {inv.jobs?.invoice_number ?? inv.job_id?.slice(0, 8)}
+                      <p className="text-xs text-gray-400">{inv.jobs?.clients?.contact_name}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(Number(inv.amount))}</td>
+                    <td className="px-4 py-3 text-right">
+                      <ApproveInvoiceButton invoiceId={inv.id} />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -81,11 +98,17 @@ export default async function InvoicesPage() {
             <tbody className="divide-y divide-gray-50">
               {pending.map((inv: any) => {
                 const isDue = inv.payout_due_at && new Date(inv.payout_due_at) <= now
+                const t = inv.translators ?? {}
+                const method = t.payment_method ?? 'check'
+                const badge = METHOD_BADGE[method] ?? METHOD_BADGE.other
                 return (
                   <tr key={inv.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <p className="font-medium">{inv.translators?.full_name}</p>
-                      <p className="text-xs text-gray-400">{inv.translators?.email}</p>
+                      <p className="font-medium">{t.full_name}</p>
+                      <p className="text-xs text-gray-400">{t.email}</p>
+                      <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${badge.className}`}>
+                        {badge.label}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {inv.jobs?.invoice_number ?? inv.job_id.slice(0, 8)}
@@ -98,8 +121,16 @@ export default async function InvoicesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {inv.translators?.stripe_connect_id ? (
+                      {t.stripe_connect_id ? (
                         <PayoutButton invoiceId={inv.id} />
+                      ) : method !== 'stripe' ? (
+                        <MarkPaidButton
+                          invoiceId={inv.id}
+                          paymentMethod={method}
+                          paymentDetails={t.payment_details}
+                          amount={Number(inv.amount)}
+                          translatorName={t.full_name ?? ''}
+                        />
                       ) : (
                         <span className="text-xs text-gray-400">No Stripe account</span>
                       )}
