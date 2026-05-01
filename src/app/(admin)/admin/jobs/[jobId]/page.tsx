@@ -99,6 +99,8 @@ export default async function JobDetailPage({ params }: Props) {
             hasDocument={!!(job as any).document_path}
             hasAiDraft={!!(job as any).ai_draft_path}
             hasVendorSubmission={!!(job as any).translated_doc_path}
+            sourceLang={job.source_lang}
+            targetLang={job.target_lang}
           />
         )}
 

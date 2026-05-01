@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AiTranslateButton } from '@/components/admin/ai-translate-button'
+import { SendTranslatorInquiryButton } from '@/components/admin/send-translator-inquiry-button'
 import { Sparkles, UserPlus, Send, Eye, CheckCircle2, RefreshCw } from 'lucide-react'
 
 interface Props {
@@ -11,9 +12,11 @@ interface Props {
   hasDocument: boolean
   hasAiDraft: boolean
   hasVendorSubmission: boolean
+  sourceLang?: string | null
+  targetLang?: string | null
 }
 
-export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDraft, hasVendorSubmission }: Props) {
+export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDraft, hasVendorSubmission, sourceLang, targetLang }: Props) {
   // Primary CTA per status
   if (status === 'draft') {
     return (
@@ -45,14 +48,33 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
 
   if (status === 'paid' || status === 'ai_failed') {
     return (
-      <div className="flex flex-wrap gap-2">
-        <Link href={`/admin/jobs/${jobId}/assign`}>
-          <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign Translator
-          </Button>
-        </Link>
-        {hasDocument && status !== 'ai_failed' && <AiTranslateButton jobId={jobId} />}
-        {status === 'ai_failed' && hasDocument && <AiTranslateButton jobId={jobId} />}
+      <div className="flex flex-col gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4 w-full">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Next step — choose one:</p>
+        <div className="flex flex-wrap gap-2 items-start">
+          {/* Option A: AI Translation */}
+          {hasDocument && (
+            <div className="flex flex-col gap-1">
+              <AiTranslateButton jobId={jobId} />
+              <p className="text-[10px] text-gray-400 pl-1">Generate AI draft, then assign a reviewer</p>
+            </div>
+          )}
+
+          {/* Option B: Send inquiry to translators */}
+          <div className="flex flex-col gap-1">
+            <SendTranslatorInquiryButton jobId={jobId} sourceLang={sourceLang} targetLang={targetLang} />
+            <p className="text-[10px] text-gray-400 pl-1">Email translators to confirm availability &amp; rate</p>
+          </div>
+
+          {/* Option C: Assign directly */}
+          <div className="flex flex-col gap-1">
+            <Link href={`/admin/jobs/${jobId}/assign`}>
+              <Button size="sm" variant="outline">
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign Directly
+              </Button>
+            </Link>
+            <p className="text-[10px] text-gray-400 pl-1">Skip inquiry, assign a translator now</p>
+          </div>
+        </div>
       </div>
     )
   }

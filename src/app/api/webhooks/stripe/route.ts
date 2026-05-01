@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         const { data: emailData, error: emailError } = await getResend().emails.send({
           from: FROM_EMAIL,
           to: client.email,
-          subject: `Booking Confirmed — ${invoiceNumber}`,
+          subject: `Order Confirmed — ${invoiceNumber}`,
           html,
         })
 
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
           job_id: jobId,
           email_type: 'job_confirmed',
           recipient: client.email,
-          subject: `Booking Confirmed — ${invoiceNumber}`,
+          subject: `Order Confirmed — ${invoiceNumber}`,
           resend_id: emailData?.id ?? null,
           status: emailError ? 'failed' : 'sent',
           error_message: emailError ? String(emailError) : null,

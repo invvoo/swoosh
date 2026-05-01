@@ -33,13 +33,13 @@ export function JobConfirmedEmail({
       <Body style={{ fontFamily: 'Arial, sans-serif', backgroundColor: '#f9f9f9', margin: 0 }}>
         <Container style={{ maxWidth: 600, margin: '40px auto', backgroundColor: '#ffffff', borderRadius: 8, padding: 32 }}>
           <Heading style={{ color: '#1a1a2e', fontSize: 24, marginBottom: 8 }}>
-            Booking Confirmed
+            Order Confirmed
           </Heading>
           <Text style={{ color: '#444', fontSize: 16 }}>
             Dear {clientName},
           </Text>
           <Text style={{ color: '#444', fontSize: 16 }}>
-            Your <strong>{jobType}</strong> booking with L.A. Translation &amp; Interpretation has been
+            Your <strong>{jobType}</strong> order with L.A. Translation &amp; Interpretation has been
             confirmed. Here are the details:
           </Text>
           <Section style={{ backgroundColor: '#f0f4ff', borderRadius: 8, padding: '16px 24px', margin: '24px 0' }}>
