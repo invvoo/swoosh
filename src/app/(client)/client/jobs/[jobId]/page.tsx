@@ -273,24 +273,14 @@ export default function ClientJobDetailPage() {
             <Clock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-blue-900 text-sm">
-                {({
-                  paid: 'Payment Confirmed — Starting Work',
-                  quote_accepted: 'Payment Confirmed — Starting Work',
-                  ai_translating: 'Translation In Progress',
-                  ai_review_pending: 'Under Professional Review',
-                  assigned: 'Translator Assigned',
-                  in_progress: 'Translation In Progress',
-                } as Record<string, string>)[job.status] ?? 'In Progress'}
+                {(['paid', 'quote_accepted'].includes(job.status)
+                  ? 'Payment Confirmed — Starting Work'
+                  : 'Translation In Progress')}
               </p>
               <p className="text-sm text-blue-700 mt-0.5">
-                {({
-                  paid: "Your payment is confirmed and we're preparing your document.",
-                  quote_accepted: "Your payment is confirmed and we're preparing your document.",
-                  ai_translating: 'Our AI system is generating the initial draft.',
-                  ai_review_pending: 'A professional translator is reviewing and refining the draft.',
-                  assigned: 'Your translator is working on the document.',
-                  in_progress: 'Your translation is in progress.',
-                } as Record<string, string>)[job.status] ?? "We're working on your order."}
+                {(['paid', 'quote_accepted'].includes(job.status)
+                  ? "Your payment is confirmed and our team is working on your document."
+                  : 'Our team is translating your document. We will notify you when it is ready.')}
               </p>
               {job.estimated_turnaround_days && (
                 <p className="text-xs text-blue-600 mt-1">

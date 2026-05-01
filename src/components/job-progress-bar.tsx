@@ -7,7 +7,7 @@ const TRANSLATION_STEPS: Step[] = [
   { label: 'Request Received', description: 'Your document has been submitted' },
   { label: 'Quote Ready', description: 'Your quote is ready to review' },
   { label: 'Payment Confirmed', description: 'Payment received — thank you!' },
-  { label: 'Translation in Progress', description: 'Our team is working on your document' },
+  { label: 'In Progress', description: 'Our team is working on your document' },
   { label: 'Delivered', description: 'Your translated document is ready' },
 ]
 
@@ -50,7 +50,8 @@ function getActiveStep(jobType: string, status: string): number {
     translation: {
       draft: 0, quote_sent: 1, quote_accepted: 1, paid: 2,
       ai_translating: 3, ai_review_pending: 3, ai_failed: 3,
-      assigned: 3, in_progress: 3, delivered: 4, complete: 4,
+      assigned: 3, in_progress: 3,
+      delivered: 4, complete: 4,
     },
     interpretation: {
       draft: 0,
