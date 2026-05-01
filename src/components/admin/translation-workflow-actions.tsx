@@ -83,24 +83,32 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
 
   if (status === 'ai_review_pending') {
     return (
-      <div className="flex flex-wrap gap-2">
-        <Link href={`/admin/jobs/${jobId}/assign`}>
-          <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign External Translator
-          </Button>
-        </Link>
-        {hasAiDraft && (
-          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/jobs/${jobId}/assign`}>
+            <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
+              <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign External Translator
             </Button>
-          </a>
+          </Link>
+          {hasAiDraft && (
+            <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
+              </Button>
+            </a>
+          )}
+          <Link href={`/admin/jobs/${jobId}/deliver`}>
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+            </Button>
+          </Link>
+        </div>
+        {hasDocument && (
+          <div className="flex items-center gap-2">
+            <AiTranslateButton jobId={jobId} label="Re-run AI Translation" />
+            <span className="text-[10px] text-gray-400">Overwrites current draft using your saved AI rules</span>
+          </div>
         )}
-        <Link href={`/admin/jobs/${jobId}/deliver`}>
-          <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-            <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
-          </Button>
-        </Link>
       </div>
     )
   }
@@ -108,31 +116,47 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
   if (status === 'assigned') {
     if (hasVendorSubmission) {
       return (
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/jobs/${jobId}/review`}>
-            <Button size="sm" className="bg-green-700 hover:bg-green-800">
-              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
-            </Button>
-          </Link>
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
-            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
-            </Button>
-          </Link>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/jobs/${jobId}/review`}>
+              <Button size="sm" className="bg-green-700 hover:bg-green-800">
+                <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
+              </Button>
+            </Link>
+            <Link href={`/admin/jobs/${jobId}/deliver`}>
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+              </Button>
+            </Link>
+          </div>
+          {hasDocument && (
+            <div className="flex items-center gap-2">
+              <AiTranslateButton jobId={jobId} label="Re-run AI Translation" />
+              <span className="text-[10px] text-gray-400">Overwrites current draft using your saved AI rules</span>
+            </div>
+          )}
         </div>
       )
     }
     return (
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
-          Translator assigned — awaiting submission
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
+            Translator assigned — awaiting submission
+          </div>
+          {(hasAiDraft || hasDocument) && (
+            <Link href={`/admin/jobs/${jobId}/deliver`}>
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+              </Button>
+            </Link>
+          )}
         </div>
-        {(hasAiDraft || hasDocument) && (
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
-            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
-            </Button>
-          </Link>
+        {hasDocument && (
+          <div className="flex items-center gap-2">
+            <AiTranslateButton jobId={jobId} label="Re-run AI Translation" />
+            <span className="text-[10px] text-gray-400">Overwrites current draft using your saved AI rules</span>
+          </div>
         )}
       </div>
     )
@@ -141,31 +165,47 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
   if (status === 'in_progress') {
     if (hasVendorSubmission) {
       return (
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/jobs/${jobId}/review`}>
-            <Button size="sm" className="bg-green-700 hover:bg-green-800">
-              <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
-            </Button>
-          </Link>
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
-            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
-            </Button>
-          </Link>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/jobs/${jobId}/review`}>
+              <Button size="sm" className="bg-green-700 hover:bg-green-800">
+                <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
+              </Button>
+            </Link>
+            <Link href={`/admin/jobs/${jobId}/deliver`}>
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+              </Button>
+            </Link>
+          </div>
+          {hasDocument && (
+            <div className="flex items-center gap-2">
+              <AiTranslateButton jobId={jobId} label="Re-run AI Translation" />
+              <span className="text-[10px] text-gray-400">Overwrites current draft using your saved AI rules</span>
+            </div>
+          )}
         </div>
       )
     }
     return (
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
-          Translation in progress — awaiting vendor submission
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
+            Translation in progress — awaiting vendor submission
+          </div>
+          {(hasAiDraft || hasDocument) && (
+            <Link href={`/admin/jobs/${jobId}/deliver`}>
+              <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+              </Button>
+            </Link>
+          )}
         </div>
-        {(hasAiDraft || hasDocument) && (
-          <Link href={`/admin/jobs/${jobId}/deliver`}>
-            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
-            </Button>
-          </Link>
+        {hasDocument && (
+          <div className="flex items-center gap-2">
+            <AiTranslateButton jobId={jobId} label="Re-run AI Translation" />
+            <span className="text-[10px] text-gray-400">Overwrites current draft using your saved AI rules</span>
+          </div>
         )}
       </div>
     )
