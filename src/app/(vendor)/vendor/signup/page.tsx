@@ -59,6 +59,10 @@ export default function VendorSignupPage() {
     notes: '',
     paymentMethod: 'stripe',
     paymentDetails: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +103,10 @@ export default function VendorSignupPage() {
           notes: form.notes || undefined,
           paymentMethod: form.paymentMethod,
           paymentDetails: form.paymentDetails || undefined,
+          address: form.address || undefined,
+          city: form.city || undefined,
+          state: form.state || undefined,
+          zip: form.zip || undefined,
         }),
       })
       const data = await res.json()
@@ -247,6 +255,53 @@ export default function VendorSignupPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Your base rate per assignment. This is pre-filled when you bid on a job — you can adjust per assignment.</p>
               </div>
+            )}
+
+            {/* Address — required for interpreters for distance matching */}
+            {['interpreter', 'both'].includes(form.vendorType) && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Street Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text" required value={form.address}
+                    onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                    placeholder="123 Main St"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Used to match you with in-person assignments within commuting distance.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                    <input
+                      type="text" required value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                      placeholder="Los Angeles"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input
+                      type="text" maxLength={2} value={form.state}
+                      onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                      placeholder="CA"
+                    />
+                  </div>
+                </div>
+                <div className="w-36">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                  <input
+                    type="text" value={form.zip}
+                    onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                    placeholder="90010"
+                  />
+                </div>
+              </>
             )}
 
             <div>

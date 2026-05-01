@@ -248,8 +248,11 @@ export default function VendorJobsPage() {
             {translatorName && <p className="text-xs text-gray-500">{translatorName}</p>}
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/vendor/profile" className="flex items-center gap-1 text-xs text-gray-600 font-medium hover:text-gray-900">
+              My Profile
+            </Link>
             <Link href="/vendor/benefits" className="flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline">
-              <Sparkles className="h-3 w-3" /> Platform benefits
+              <Sparkles className="h-3 w-3" /> Benefits
             </Link>
             <button onClick={handleSignOut} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800">
               <LogOut className="h-3.5 w-3.5" /> Sign out

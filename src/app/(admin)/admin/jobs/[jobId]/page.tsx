@@ -124,6 +124,9 @@ export default async function JobDetailPage({ params }: Props) {
                   jobId={jobId}
                   sourceLang={job.source_lang}
                   targetLang={job.target_lang}
+                  locationType={(job as any).location_type}
+                  locationDetails={(job as any).location_details}
+                  certRequired={(job as any).interpretation_cert_required}
                 />
                 <Link href={`/admin/jobs/${jobId}/assign`}>
                   <Button size="sm" variant="outline">

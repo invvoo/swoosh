@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
-import { notifyAdminNewInquiry } from '@/lib/email/notify-admin'
+import { geocodeAddress } from '@/lib/geo/geocode'
 
 const schema = z.object({
   fullName: z.string().min(2),
@@ -10,11 +10,16 @@ const schema = z.object({
   vendorType: z.enum(['translator', 'interpreter', 'both', 'notary', 'other']),
   languagePairs: z.string().optional(),
   specialties: z.array(z.string()).optional(),
+  certifications: z.array(z.string()).optional(),
   perWordRate: z.number().positive().optional(),
   hourlyRate: z.number().positive().optional(),
   notes: z.string().max(1000).optional(),
   paymentMethod: z.enum(['stripe', 'paypal', 'zelle', 'venmo', 'check', 'other']).default('check'),
   paymentDetails: z.string().max(500).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -22,7 +27,7 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
 
-  const { fullName, email, phone, vendorType, languagePairs, specialties, perWordRate, hourlyRate, notes, paymentMethod, paymentDetails } = parsed.data
+  const { fullName, email, phone, vendorType, languagePairs, specialties, certifications, perWordRate, hourlyRate, notes, paymentMethod, paymentDetails, address, city, state, zip } = parsed.data
 
   const service = createServiceClient()
 
@@ -45,6 +50,16 @@ export async function POST(req: NextRequest) {
     ? languagePairs.split(',').map((s) => s.trim()).filter(Boolean)
     : []
 
+  // Geocode address for interpreters
+  let lat: number | null = null
+  let lng: number | null = null
+  const isInterpreter = ['interpreter', 'both'].includes(vendorType)
+  if (isInterpreter && (address || city)) {
+    const fullAddr = [address, city, state, zip].filter(Boolean).join(', ')
+    const coords = await geocodeAddress(fullAddr)
+    if (coords) { lat = coords.lat; lng = coords.lng }
+  }
+
   const { error } = await service
     .from('translators')
     .insert({
@@ -54,6 +69,7 @@ export async function POST(req: NextRequest) {
       vendor_type: vendorType,
       language_pairs: langPairsArray,
       specialties: specialties ?? [],
+      certifications: certifications ?? [],
       per_word_rate: perWordRate ?? null,
       hourly_rate: hourlyRate ?? null,
       notes: notes ?? null,
@@ -61,6 +77,12 @@ export async function POST(req: NextRequest) {
       applied_at: new Date().toISOString(),
       payment_method: paymentMethod,
       payment_details: paymentDetails ?? null,
+      address: address ?? null,
+      city: city ?? null,
+      state: state ?? null,
+      zip: zip ?? null,
+      lat,
+      lng,
     } as any)
 
   if (error) {
@@ -83,11 +105,13 @@ export async function POST(req: NextRequest) {
     vendorType: VENDOR_TYPE_LABELS[vendorType] ?? vendorType,
     languagePairs: langPairsArray,
     specialties: specialties ?? [],
+    certifications: certifications ?? [],
     perWordRate,
     hourlyRate,
     notes,
     paymentMethod,
     paymentDetails,
+    address: [address, city, state, zip].filter(Boolean).join(', ') || undefined,
   }).catch((err) => console.error('[vendor-signup] Admin notify error:', err))
 
   return NextResponse.json({ success: true })
@@ -100,11 +124,13 @@ async function notifyAdminNewVendorApplication(params: {
   vendorType: string
   languagePairs: string[]
   specialties: string[]
+  certifications: string[]
   perWordRate?: number
   hourlyRate?: number
   notes?: string
   paymentMethod?: string
   paymentDetails?: string
+  address?: string
 }) {
   const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? ''
   if (!ADMIN_EMAIL || !process.env.RESEND_API_KEY) return
@@ -118,6 +144,8 @@ async function notifyAdminNewVendorApplication(params: {
     `Type: ${params.vendorType}`,
     params.languagePairs.length > 0 ? `Languages: ${params.languagePairs.join(', ')}` : null,
     params.specialties.length > 0 ? `Specialties: ${params.specialties.join(', ')}` : null,
+    params.certifications.length > 0 ? `Certifications: ${params.certifications.join(', ')}` : null,
+    params.address ? `Address: ${params.address}` : null,
     params.perWordRate != null ? `Per-word rate: $${params.perWordRate.toFixed(4)}` : null,
     params.hourlyRate != null ? `Hourly rate: $${params.hourlyRate.toFixed(2)}/hr` : null,
     params.notes ? `\nMessage:\n${params.notes}` : null,
