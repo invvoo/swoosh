@@ -3,24 +3,57 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
 function LoginContent() {
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
 
+  const [oauthLoading, setOauthLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [pwLoading, setPwLoading] = useState(false)
+  const [pwError, setPwError] = useState<string | null>(null)
+
   async function signInWithGoogle() {
-    setLoading(true)
+    setOauthLoading(true)
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/admin`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/admin` },
     })
+  }
+
+  async function signInWithEmail(e: React.FormEvent) {
+    e.preventDefault()
+    setPwLoading(true)
+    setPwError(null)
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setPwError('Invalid email or password.')
+      setPwLoading(false)
+      return
+    }
+    // Verify the user is a registered employee
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: employee } = await supabase.from('employees').select('id').eq('id', user.id).maybeSingle()
+      if (!employee) {
+        await supabase.auth.signOut()
+        setPwError('Your account is not authorized to access the admin portal.')
+        setPwLoading(false)
+        return
+      }
+    }
+    router.push('/admin')
+    router.refresh()
   }
 
   return (
@@ -33,12 +66,62 @@ function LoginContent() {
 
         {error === 'unauthorized' && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            Your Google account is not authorized to access the admin portal. Please contact your administrator.
+            Your account is not authorized to access the admin portal.
           </div>
         )}
 
-        <Button onClick={signInWithGoogle} className="w-full" variant="outline" disabled={loading}>
-          {loading ? (
+        {/* Email / password */}
+        <form onSubmit={signInWithEmail} className="space-y-3 mb-4">
+          <div className="space-y-1">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@latranslation.com"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {pwError && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{pwError}</p>
+          )}
+          <Button type="submit" className="w-full bg-[#1a1a2e] hover:bg-[#2a2a4e]" disabled={pwLoading}>
+            {pwLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Sign In
+          </Button>
+        </form>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+          <div className="relative flex justify-center"><span className="bg-white px-2 text-xs text-gray-400">or</span></div>
+        </div>
+
+        <Button onClick={signInWithGoogle} className="w-full" variant="outline" disabled={oauthLoading}>
+          {oauthLoading ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
           ) : (
             <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" aria-hidden>

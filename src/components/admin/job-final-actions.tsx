@@ -47,7 +47,7 @@ export function JobFinalActions({ jobId, status, adminName, jobType }: Props) {
   async function deleteJob() {
     setLoading(true)
     await fetch(`/api/admin/jobs/${jobId}`, { method: 'DELETE' })
-    router.push('/admin/jobs')
+    window.location.href = '/admin/jobs'
   }
 
   if (confirming === 'complete') {

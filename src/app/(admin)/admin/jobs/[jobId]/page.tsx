@@ -105,6 +105,14 @@ export default async function JobDetailPage({ params }: Props) {
                 <Button variant="outline" size="sm">Review / Edit Quote</Button>
               </Link>
             )}
+            {/* Interpretation: assign page handles interpreter selection + confirmation email */}
+            {job.job_type === 'interpretation' && ['confirmed', 'paid'].includes(job.status) && (
+              <Link href={`/admin/jobs/${jobId}/assign`}>
+                <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
+                  <UserCheck className="h-4 w-4" /> Assign Interpreter
+                </Button>
+              </Link>
+            )}
           </>
         )}
 
@@ -124,7 +132,7 @@ export default async function JobDetailPage({ params }: Props) {
 
         {/* Manual payment for in-person / phone orders that haven't been paid via Stripe */}
         {['draft', 'quote_sent', 'quote_accepted', 'confirmed'].includes(job.status) && (
-          <ManualPaymentButton jobId={jobId} currentStatus={job.status} />
+          <ManualPaymentButton jobId={jobId} currentStatus={job.status} quoteAmount={displayAmount != null ? Number(displayAmount) : undefined} />
         )}
 
         {/* Final actions: Mark Complete (translation only after delivered) + Not Proceeding */}
@@ -191,6 +199,27 @@ export default async function JobDetailPage({ params }: Props) {
             {job.word_count && <div className="flex gap-2"><dt className="text-gray-500 w-24">Word Count</dt><dd>{job.word_count.toLocaleString()}</dd></div>}
             {job.scheduled_at && <div className="flex gap-2"><dt className="text-gray-500 w-24">Scheduled</dt><dd>{formatDateTime(job.scheduled_at)}</dd></div>}
             {job.duration_minutes && <div className="flex gap-2"><dt className="text-gray-500 w-24">Duration</dt><dd>{job.duration_minutes} min</dd></div>}
+            {job.location_type && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Format</dt>
+                <dd className="capitalize">{job.location_type === 'in_person' ? 'In-Person' : job.location_type === 'phone' ? 'Phone' : 'Video / Remote'}</dd>
+              </div>
+            )}
+            {job.location_details && <div className="flex gap-2"><dt className="text-gray-500 w-24">Location</dt><dd>{job.location_details}</dd></div>}
+            {(job as any).interpretation_mode && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Mode</dt>
+                <dd className="capitalize">{(job as any).interpretation_mode}</dd>
+              </div>
+            )}
+            {(job as any).interpretation_cert_required && (job as any).interpretation_cert_required !== 'none' && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Cert Required</dt>
+                <dd className="font-medium text-orange-700">
+                  {(job as any).interpretation_cert_required === 'court' ? 'Court-Certified' : 'Medical (CCHI/NB)'}
+                </dd>
+              </div>
+            )}
             {job.job_type === 'interpretation' && (job as any).quote_interpretation_rate && (
               <div className="flex gap-2">
                 <dt className="text-gray-500 w-24">Rate</dt>

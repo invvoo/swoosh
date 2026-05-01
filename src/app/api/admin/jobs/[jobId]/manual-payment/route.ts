@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { triggerPostPaymentActions } from '@/lib/jobs/post-payment'
 
 const schema = z.object({
   method: z.enum(['cash', 'check', 'zelle', 'venmo', 'wire', 'other']),
   note: z.string().max(500).optional(),
+  amount: z.number().positive().optional(),
 })
 
 interface Props { params: Promise<{ jobId: string }> }
@@ -19,13 +21,13 @@ export async function POST(req: NextRequest, { params }: Props) {
   const body = await req.json().catch(() => ({}))
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 422 })
-  const { method, note } = parsed.data
+  const { method, note, amount } = parsed.data
 
   const service = createServiceClient()
 
   const { data: job } = await (service as any)
     .from('jobs')
-    .select('id, status, job_type, invoice_number, quote_amount, quote_adjusted_amount, clients(contact_name, email)')
+    .select('id, status, job_type, invoice_number, source_lang, target_lang, document_path, document_name, word_count, quote_amount, quote_adjusted_amount, scheduled_at, duration_minutes, location_type, location_details, interpretation_mode, interpretation_cert_required, specialty_multipliers:specialty_id(name), clients(contact_name, email)')
     .eq('id', jobId)
     .single()
 
@@ -58,6 +60,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     invoice_issued_at: new Date().toISOString(),
     payment_collected_at: new Date().toISOString(),
     payment_method: `manual:${method}`,
+    // If admin specifies the actual amount received, record it as the adjusted amount
+    ...(amount != null ? { quote_adjusted_amount: amount } : {}),
   } as any).eq('id', jobId)
 
   await service.from('job_status_history').insert({
@@ -67,6 +71,9 @@ export async function POST(req: NextRequest, { params }: Props) {
     changed_by: user.id,
     note: `Manual payment recorded — ${methodLabel[method]}${note ? ` · ${note}` : ''} · ${invoiceNumber}`,
   })
+
+  // Trigger post-payment actions (AI translation, interpreter outreach, admin notify)
+  await triggerPostPaymentActions(service, { ...job, status: nextStatus, invoice_number: invoiceNumber }, invoiceNumber)
 
   return NextResponse.json({ ok: true, invoiceNumber, nextStatus })
 }

@@ -8,6 +8,8 @@ interface QuoteReadyEmailProps {
   sourceLang?: string
   targetLang?: string
   quoteAmount: number
+  discountAmount?: number
+  discountLabel?: string
   quoteUrl: string
   expiresAt: string
 }
@@ -18,12 +20,17 @@ export function QuoteReadyEmail({
   sourceLang,
   targetLang,
   quoteAmount,
+  discountAmount,
+  discountLabel,
   quoteUrl,
   expiresAt,
 }: QuoteReadyEmailProps) {
   const serviceLabel = sourceLang && targetLang
     ? `${sourceLang} → ${targetLang} ${jobType}`
     : jobType
+
+  const hasDiscount = discountAmount != null && discountAmount > 0
+  const finalAmount = hasDiscount ? Math.max(0, quoteAmount - discountAmount!) : quoteAmount
 
   return (
     <Html>
@@ -41,8 +48,18 @@ export function QuoteReadyEmail({
             for your <strong>{serviceLabel}</strong> request.
           </Text>
           <Section style={{ backgroundColor: '#f0f4ff', borderRadius: 8, padding: '16px 24px', margin: '24px 0' }}>
+            {hasDiscount && (
+              <>
+                <Text style={{ fontSize: 14, color: '#666', margin: '0 0 4px' }}>
+                  Subtotal: ${quoteAmount.toFixed(2)}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#166534', margin: '0 0 8px' }}>
+                  {discountLabel || 'Discount'}: −${discountAmount!.toFixed(2)}
+                </Text>
+              </>
+            )}
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1a1a2e', margin: 0 }}>
-              Quote Amount: ${quoteAmount.toFixed(2)}
+              {hasDiscount ? 'Total After Discount' : 'Quote Amount'}: ${finalAmount.toFixed(2)}
             </Text>
             <Text style={{ color: '#666', fontSize: 14, margin: '8px 0 0' }}>
               This quote expires on {expiresAt}
@@ -63,6 +80,11 @@ export function QuoteReadyEmail({
             View &amp; Accept Quote
           </Button>
           <Hr style={{ margin: '32px 0', borderColor: '#eee' }} />
+          <Text style={{ color: '#888', fontSize: 12, margin: '0 0 8px' }}>
+            <strong style={{ color: '#555' }}>Cancellation Policy:</strong> Cancellations made within
+            48 business hours of the scheduled service or accepted quote are subject to the full quoted
+            fee. No refunds will be issued for cancellations within this window.
+          </Text>
           <Text style={{ color: '#888', fontSize: 13 }}>
             Questions? Call us at (213) 385-7781 or reply to this email at info@latranslation.com.
             <br />

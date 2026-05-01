@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       },
     ]
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: 'payment',
       customer: stripeCustomerId ?? undefined,
       customer_email: !stripeCustomerId ? client?.email : undefined,
@@ -87,7 +87,22 @@ export async function POST(req: NextRequest, { params }: Props) {
       metadata: { jobId: job.id },
       success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/quote/${token}`,
-    })
+    }
+
+    let session
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams)
+    } catch (stripeErr: any) {
+      // Stored customer ID doesn't exist in this Stripe mode (e.g. test/live mismatch)
+      if (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer' && client?.email) {
+        const newCustomer = await stripe.customers.create({ name: client.contact_name, email: client.email })
+        stripeCustomerId = newCustomer.id
+        await supabase.from('clients').update({ stripe_customer_id: stripeCustomerId }).eq('email', client.email)
+        session = await stripe.checkout.sessions.create({ ...sessionParams, customer: stripeCustomerId, customer_email: undefined })
+      } else {
+        throw stripeErr
+      }
+    }
 
     // Mark quote as accepted
     await supabase

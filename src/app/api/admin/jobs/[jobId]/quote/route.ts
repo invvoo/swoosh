@@ -70,9 +70,9 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   try {
     const service = createServiceClient()
-    const { data: job } = await service
+    const { data: job } = await (service as any)
       .from('jobs')
-      .select('id, job_type, status, source_lang, target_lang, quote_amount, quote_adjusted_amount, clients(contact_name, email)')
+      .select('id, job_type, status, source_lang, target_lang, quote_amount, quote_adjusted_amount, discount_amount, discount_label, clients(contact_name, email)')
       .eq('id', jobId)
       .single()
 
@@ -99,12 +99,15 @@ export async function POST(req: NextRequest, { params }: Props) {
     })
 
     const baseUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const discountAmt = (job as any).discount_amount != null ? Number((job as any).discount_amount) : undefined
     const html = await renderAsync(QuoteReadyEmail({
       clientName: client.contact_name,
       jobType: job.job_type,
       sourceLang: job.source_lang ?? undefined,
       targetLang: job.target_lang ?? undefined,
       quoteAmount: amount,
+      discountAmount: discountAmt && discountAmt > 0 ? discountAmt : undefined,
+      discountLabel: (job as any).discount_label ?? undefined,
       quoteUrl: `${baseUrl}/quote/${token}`,
       expiresAt: format(expiresAt, 'MMMM d, yyyy'),
     }))

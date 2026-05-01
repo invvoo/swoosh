@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe/client'
 import { createServiceClient } from '@/lib/supabase/server'
-import { signToken } from '@/lib/tokens'
-import { translateDocument } from '@/lib/ai/translate'
-import { extractWordCount } from '@/lib/pdf/word-counter'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
-import { AiDraftReadyEmail } from '@/lib/email/templates/ai-draft-ready'
 import { JobConfirmedEmail } from '@/lib/email/templates/job-confirmed'
 import { render as renderAsync } from '@react-email/components'
-import { Document, Paragraph, TextRun, Packer } from 'docx'
-import { addDays } from 'date-fns'
+import { triggerPostPaymentActions } from '@/lib/jobs/post-payment'
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -33,9 +28,9 @@ export async function POST(req: NextRequest) {
     // Idempotency check
     const { data: job } = await supabase
       .from('jobs')
-      .select('id, job_type, status, stripe_checkout_session_id, source_lang, target_lang, document_path, document_name, word_count, specialty_multipliers:specialty_id(name), clients(contact_name, email), quote_amount, quote_adjusted_amount, scheduled_at, duration_minutes, location_type, location_details')
+      .select('id, job_type, status, stripe_checkout_session_id, source_lang, target_lang, document_path, document_name, word_count, invoice_number, quote_amount, quote_adjusted_amount, scheduled_at, duration_minutes, location_type, location_details, interpretation_mode, interpretation_cert_required, specialty_multipliers:specialty_id(name), clients(contact_name, email)')
       .eq('id', jobId)
-      .single()
+      .single() as any
 
     if (!job) return NextResponse.json({ ok: true })
     if (job.stripe_checkout_session_id === session.id) {
@@ -103,76 +98,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // If it's a translation job, trigger AI translation
-    if (job.job_type === 'translation' && job.document_path) {
-      await supabase.from('jobs').update({ status: 'ai_translating', ai_translation_started_at: new Date().toISOString() }).eq('id', jobId)
-      await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'paid', new_status: 'ai_translating' })
-
-      try {
-        // Download original document
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from('job-documents')
-          .download(job.document_path)
-
-        if (downloadError || !fileData) throw new Error('Failed to download document')
-
-        const buffer = Buffer.from(await fileData.arrayBuffer())
-        const text = await extractWordCount(buffer, job.document_name ?? 'document.docx').then(async () => {
-          // Re-extract text for translation
-          if ((job.document_name ?? '').toLowerCase().endsWith('.docx') || (job.document_name ?? '').toLowerCase().endsWith('.doc')) {
-            const mammoth = await import('mammoth')
-            const result = await mammoth.extractRawText({ buffer })
-            return result.value
-          } else if ((job.document_name ?? '').toLowerCase().endsWith('.pdf')) {
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
-            const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
-            const data = await pdfParse(buffer)
-            return data.text
-          }
-          return buffer.toString('utf-8')
-        })
-
-        const specialtyName = (job.specialty_multipliers as any)?.name ?? 'General'
-        const translatedText = await translateDocument(text, job.source_lang!, job.target_lang!, specialtyName)
-
-        // Create docx from translated text
-        const doc = new Document({
-          sections: [{
-            children: translatedText.split('\n').map(line =>
-              new Paragraph({ children: [new TextRun(line)] })
-            ),
-          }],
-        })
-        const docBuffer = await Packer.toBuffer(doc)
-
-        const aiDraftPath = `documents/ai-draft/${jobId}/ai_draft.docx`
-        await supabase.storage.from('job-documents').upload(aiDraftPath, docBuffer, { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', upsert: true })
-
-        await supabase
-          .from('jobs')
-          .update({ status: 'ai_review_pending', ai_draft_path: aiDraftPath, ai_translation_completed_at: new Date().toISOString() })
-          .eq('id', jobId)
-
-        await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'ai_translating', new_status: 'ai_review_pending' })
-
-        const notifyEmail = process.env.ADMIN_NOTIFY_EMAIL
-        if (notifyEmail) {
-          const html = await renderAsync(AiDraftReadyEmail({
-            jobId,
-            clientName: client?.contact_name ?? 'Client',
-            sourceLang: job.source_lang!,
-            targetLang: job.target_lang!,
-            wordCount: job.word_count ?? 0,
-          }))
-          await getResend().emails.send({ from: FROM_EMAIL, to: notifyEmail, subject: `AI Draft Ready — ${invoiceNumber}`, html })
-        }
-
-      } catch (aiError) {
-        console.error('AI translation failed:', aiError)
-        await supabase.from('jobs').update({ status: 'ai_failed' }).eq('id', jobId)
-        await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'ai_translating', new_status: 'ai_failed', note: String(aiError) })
-      }
-    }
+    // Trigger post-payment actions (AI translation, interpreter outreach, admin notify)
+    await triggerPostPaymentActions(supabase, { ...job, invoice_number: invoiceNumber }, invoiceNumber)
   }
 
   if (event.type === 'transfer.created') {
