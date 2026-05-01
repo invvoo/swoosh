@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 import { SendTranslatorInquiryButton } from '@/components/admin/send-translator-inquiry-button'
+import { MarkReviewedDeliverButton } from '@/components/admin/mark-reviewed-deliver-button'
 import { Sparkles, UserPlus, Send, Eye, CheckCircle2, RefreshCw } from 'lucide-react'
 
 interface Props {
@@ -17,7 +18,6 @@ interface Props {
 }
 
 export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDraft, hasVendorSubmission, sourceLang, targetLang }: Props) {
-  // Primary CTA per status
   if (status === 'draft') {
     return (
       <Link href={`/admin/jobs/${jobId}/quote`}>
@@ -51,21 +51,16 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
       <div className="flex flex-col gap-3 bg-gray-50 border border-gray-200 rounded-lg p-4 w-full">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Next step — choose one:</p>
         <div className="flex flex-wrap gap-2 items-start">
-          {/* Option A: AI Translation */}
           {hasDocument && (
             <div className="flex flex-col gap-1">
               <AiTranslateButton jobId={jobId} />
               <p className="text-[10px] text-gray-400 pl-1">Generate AI draft, then assign a reviewer</p>
             </div>
           )}
-
-          {/* Option B: Send inquiry to translators */}
           <div className="flex flex-col gap-1">
             <SendTranslatorInquiryButton jobId={jobId} sourceLang={sourceLang} targetLang={targetLang} />
-            <p className="text-[10px] text-gray-400 pl-1">Email translators to confirm availability &amp; rate</p>
+            <p className="text-[10px] text-gray-400 pl-1">Email translators to confirm availability</p>
           </div>
-
-          {/* Option C: Assign directly */}
           <div className="flex flex-col gap-1">
             <Link href={`/admin/jobs/${jobId}/assign`}>
               <Button size="sm" variant="outline">
@@ -92,15 +87,18 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
       <div className="flex flex-wrap gap-2">
         <Link href={`/admin/jobs/${jobId}/assign`}>
           <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign Translator / Reviewer
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Assign External Translator
           </Button>
         </Link>
         {hasAiDraft && (
-          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
-            </Button>
-          </a>
+          <>
+            <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+                <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
+              </Button>
+            </a>
+            <MarkReviewedDeliverButton jobId={jobId} label="Deliver AI Draft to Client" />
+          </>
         )}
       </div>
     )
@@ -115,12 +113,18 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
               <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
+          <MarkReviewedDeliverButton jobId={jobId} label="Approve & Send to Client" />
         </div>
       )
     }
     return (
-      <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
-        Translator assigned — awaiting submission
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
+          Translator assigned — awaiting submission
+        </div>
+        {(hasAiDraft || hasDocument) && (
+          <MarkReviewedDeliverButton jobId={jobId} label="Skip & Deliver Now" />
+        )}
       </div>
     )
   }
@@ -134,12 +138,18 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
               <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
+          <MarkReviewedDeliverButton jobId={jobId} label="Approve & Send to Client" />
         </div>
       )
     }
     return (
-      <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
-        Translation in progress — awaiting vendor submission
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
+          Translation in progress — awaiting vendor submission
+        </div>
+        {(hasAiDraft || hasDocument) && (
+          <MarkReviewedDeliverButton jobId={jobId} label="Skip & Deliver Now" />
+        )}
       </div>
     )
   }
