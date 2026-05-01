@@ -183,7 +183,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/translation"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-[#1a1a2e] rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg shadow-black/20">
-              Get a Quote <ArrowRight className="h-4 w-4" />
+              Get a Translation Quote <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/interpretation"
               className="inline-flex items-center gap-2 px-7 py-3.5 border border-white/30 bg-white/5 rounded-xl font-medium hover:bg-white/15 transition-colors backdrop-blur-sm">
@@ -345,11 +345,11 @@ export default function HomePage() {
       <section className="py-16 px-6 bg-blue-600 text-white text-center">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold mb-3">Ready to Get Started?</h2>
-          <p className="text-blue-100 mb-8">Upload your document for an instant quote, or call us to speak with a language specialist.</p>
+          <p className="text-blue-100 mb-8">Upload your document for an instant translation quote, or call us to speak with a language specialist.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/translation"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
-              Get a Quote Online <ArrowRight className="h-4 w-4" />
+              Get a Translation Quote <ArrowRight className="h-4 w-4" />
             </Link>
             <a href="tel:2133857781"
               className="inline-flex items-center gap-2 px-6 py-3 border border-white/40 rounded-lg font-medium hover:bg-white/10 transition-colors">
@@ -399,7 +399,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href="/translation"
                   className="flex-1 text-center px-4 py-2.5 bg-[#1a1a2e] text-white rounded-xl text-sm font-medium hover:bg-[#2a2a4e] transition-colors">
-                  Get a Quote
+                  Translation Quote
                 </Link>
                 <a href="tel:2133857781"
                   className="flex-1 text-center px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:border-gray-400 transition-colors">
