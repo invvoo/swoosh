@@ -23,18 +23,28 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as any
     const jobId = session.metadata?.jobId
 
-    if (!jobId) return NextResponse.json({ ok: true })
+    console.log('[webhook] checkout.session.completed', { sessionId: session.id, jobId, metadata: session.metadata })
+
+    if (!jobId) {
+      console.error('[webhook] no jobId in metadata — skipping')
+      return NextResponse.json({ ok: true })
+    }
 
     // Idempotency check
-    const { data: job } = await supabase
+    const { data: job, error: jobError } = await supabase
       .from('jobs')
       .select('id, job_type, status, stripe_checkout_session_id, source_lang, target_lang, document_path, document_name, word_count, invoice_number, quote_amount, quote_adjusted_amount, scheduled_at, duration_minutes, location_type, location_details, interpretation_mode, interpretation_cert_required, specialty_multipliers:specialty_id(name), clients(contact_name, email)')
       .eq('id', jobId)
       .single() as any
 
-    if (!job) return NextResponse.json({ ok: true })
+    console.log('[webhook] job lookup', { found: !!job, error: jobError?.message })
+
+    if (!job) {
+      console.error('[webhook] job not found for id:', jobId)
+      return NextResponse.json({ ok: true })
+    }
     if (job.stripe_checkout_session_id === session.id) {
-      // Already processed
+      console.log('[webhook] already processed session:', session.id)
       return NextResponse.json({ ok: true })
     }
 
@@ -43,7 +53,7 @@ export async function POST(req: NextRequest) {
     const invoiceNumber = invoiceData as string
 
     // Update job to paid
-    await supabase
+    const { error: updateError } = await supabase
       .from('jobs')
       .update({
         status: 'paid',
@@ -54,6 +64,8 @@ export async function POST(req: NextRequest) {
         payment_collected_at: new Date().toISOString(),
       })
       .eq('id', jobId)
+
+    console.log('[webhook] job update result', { jobId, invoiceNumber, error: updateError?.message })
 
     await supabase.from('job_status_history').insert({ job_id: jobId, old_status: job.status, new_status: 'paid', note: `Payment received — ${invoiceNumber}` })
 
