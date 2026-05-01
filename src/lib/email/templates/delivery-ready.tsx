@@ -7,7 +7,7 @@ interface DeliveryReadyEmailProps {
   jobType: string
   sourceLang?: string
   targetLang?: string
-  deliveryToken: string
+  downloadUrl: string
   invoiceNumber: string
 }
 
@@ -16,10 +16,9 @@ export function DeliveryReadyEmail({
   jobType,
   sourceLang,
   targetLang,
-  deliveryToken,
+  downloadUrl,
   invoiceNumber,
 }: DeliveryReadyEmailProps) {
-  const downloadUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/delivery/${deliveryToken}`
   const serviceLabel = sourceLang && targetLang
     ? `${sourceLang} → ${targetLang} ${jobType}`
     : jobType

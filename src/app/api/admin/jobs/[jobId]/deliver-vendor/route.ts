@@ -43,12 +43,13 @@ export async function POST(_req: NextRequest, { params }: Props) {
 
   const client = job.clients as any
   if (client?.email) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
     const html = await renderAsync(DeliveryReadyEmail({
       clientName: client.contact_name,
       jobType: job.job_type,
       sourceLang: job.source_lang ?? undefined,
       targetLang: job.target_lang ?? undefined,
-      deliveryToken,
+      downloadUrl: `${baseUrl}/delivery/${deliveryToken}`,
       invoiceNumber: job.invoice_number ?? '',
     }))
 
