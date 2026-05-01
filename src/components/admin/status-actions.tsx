@@ -33,10 +33,10 @@ function getActions(jobType: string, status: string): Action[] {
   }
   if (jobType === 'interpretation') {
     if (status === 'draft') return [{ label: 'Confirm & Send Quote', newStatus: 'confirmed' }]
-    if (status === 'confirmed') return [{ label: 'Mark Assigned', newStatus: 'assigned' }]
+    // confirmed + paid: assign via assign page (shown as a link in the job detail, not here)
     if (status === 'assigned') return [{ label: 'Mark Completed', newStatus: 'completed', confirm: 'Mark interpretation as completed?' }]
     if (status === 'completed') return [{ label: 'Mark Invoiced', newStatus: 'invoiced' }]
-    if (status === 'invoiced') return [{ label: 'Mark Paid', newStatus: 'paid' }]
+    if (status === 'invoiced') return [{ label: 'Close Job', newStatus: 'complete', confirm: 'Mark interpreter paid and close this job?' }]
   }
   return []
 }
