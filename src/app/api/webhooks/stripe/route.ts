@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Idempotency check
     const { data: job, error: jobError } = await supabase
       .from('jobs')
-      .select('id, job_type, status, stripe_checkout_session_id, source_lang, target_lang, document_path, document_name, word_count, invoice_number, quote_amount, quote_adjusted_amount, scheduled_at, duration_minutes, location_type, location_details, interpretation_mode, interpretation_cert_required, specialty_multipliers:specialty_id(name), clients(contact_name, email)')
+      .select('*, specialty_multipliers:specialty_id(name), clients(contact_name, email)')
       .eq('id', jobId)
       .single() as any
 
