@@ -30,21 +30,24 @@ function translationStep(status: string): number {
 // ── Interpretation ────────────────────────────────────────────────────────────
 const INTERPRETATION_STEPS: Step[] = [
   { label: 'Received' },
-  { label: 'Confirmed' },
+  { label: 'Quote Sent' },
+  { label: 'Paid' },
   { label: 'Assigned' },
   { label: 'Completed' },
   { label: 'Invoiced' },
-  { label: 'Paid' },
+  { label: 'Complete' },
 ]
 
 function interpretationStep(status: string): number {
   const map: Record<string, number> = {
     draft: 0,
-    confirmed: 1,
-    assigned: 2,
-    completed: 3,
-    invoiced: 4,
-    paid: 5,
+    confirmed: 1,                        // legacy
+    quote_sent: 1, quote_accepted: 1,
+    paid: 2,
+    assigned: 3,
+    completed: 4,
+    invoiced: 5,
+    complete: 6,
   }
   return map[status] ?? 0
 }

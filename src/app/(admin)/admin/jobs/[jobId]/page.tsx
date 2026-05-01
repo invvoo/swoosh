@@ -112,7 +112,7 @@ export default async function JobDetailPage({ params }: Props) {
               </Link>
             )}
             {/* Interpretation: assign page handles interpreter selection + confirmation email */}
-            {job.job_type === 'interpretation' && ['confirmed', 'paid'].includes(job.status) && (
+            {job.job_type === 'interpretation' && ['confirmed', 'quote_accepted', 'paid'].includes(job.status) && (
               <Link href={`/admin/jobs/${jobId}/assign`}>
                 <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
                   <UserCheck className="h-4 w-4" /> Assign Interpreter
