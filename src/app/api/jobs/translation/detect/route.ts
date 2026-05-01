@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { detectLanguage, detectLanguageAndWordsViaClaude } from '@/lib/ai/detect-language'
 
-export const maxDuration = 60 // allow Claude fallback time to complete
+export const maxDuration = 120 // allow Claude vision time to complete for large scanned PDFs
 
 export async function POST(req: NextRequest) {
   try {

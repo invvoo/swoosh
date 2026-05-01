@@ -75,7 +75,8 @@ export async function detectLanguageAndWordsViaClaude(buffer: Buffer, filename: 
     return { language: 'Unknown', confidence: 0, wordCount: 0 }
   }
 
-  if (buffer.byteLength > 4 * 1024 * 1024) {
+  const MAX_BYTES = 32 * 1024 * 1024
+  if (buffer.byteLength > MAX_BYTES) {
     console.log(`[detect-language] file too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB) — skipping Claude vision`)
     return { language: 'Unknown', confidence: 0, wordCount: 0 }
   }
@@ -92,7 +93,7 @@ export async function detectLanguageAndWordsViaClaude(buffer: Buffer, filename: 
       ]
 
   const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 64,
     messages: [{ role: 'user', content }],
   })
