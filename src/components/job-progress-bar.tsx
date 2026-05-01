@@ -13,7 +13,8 @@ const TRANSLATION_STEPS: Step[] = [
 
 const INTERPRETATION_STEPS: Step[] = [
   { label: 'Request Received', description: 'Your request has been submitted' },
-  { label: 'Confirmed', description: 'Your appointment is confirmed' },
+  { label: 'Quote Ready', description: 'Your quote is ready to review' },
+  { label: 'Payment Confirmed', description: 'Payment received — thank you!' },
   { label: 'Interpreter Assigned', description: 'An interpreter has been assigned' },
   { label: 'Completed', description: 'Your interpretation session is complete' },
 ]
@@ -52,7 +53,11 @@ function getActiveStep(jobType: string, status: string): number {
       assigned: 3, in_progress: 3, delivered: 4, complete: 4,
     },
     interpretation: {
-      draft: 0, confirmed: 1, assigned: 2, completed: 3, invoiced: 3, paid: 3,
+      draft: 0,
+      confirmed: 1, quote_sent: 1, quote_accepted: 1,
+      paid: 2,
+      assigned: 3,
+      completed: 4, invoiced: 4, complete: 4,
     },
     equipment_rental: {
       draft: 0, quote_sent: 1, quote_accepted: 1, paid: 2,

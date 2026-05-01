@@ -12,6 +12,7 @@ import { ClaimJobButton } from '@/components/admin/claim-job-button'
 import { TranslationWorkflowActions } from '@/components/admin/translation-workflow-actions'
 import { AdminNotesPanel } from '@/components/admin/admin-notes-panel'
 import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
+import { AdminJobProgressBar } from '@/components/admin/admin-job-progress-bar'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -83,6 +84,11 @@ export default async function JobDetailPage({ params }: Props) {
         </Badge>
       </div>
 
+      {/* Progress bar */}
+      <div className="bg-white rounded-lg border border-gray-200 px-6 py-5 mb-6">
+        <AdminJobProgressBar jobType={job.job_type} status={job.status} />
+      </div>
+
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
         {/* Translation: guided primary CTA per status */}
@@ -106,7 +112,7 @@ export default async function JobDetailPage({ params }: Props) {
               </Link>
             )}
             {/* Interpretation: assign page handles interpreter selection + confirmation email */}
-            {job.job_type === 'interpretation' && ['confirmed', 'paid'].includes(job.status) && (
+            {job.job_type === 'interpretation' && ['confirmed', 'quote_accepted', 'paid'].includes(job.status) && (
               <Link href={`/admin/jobs/${jobId}/assign`}>
                 <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
                   <UserCheck className="h-4 w-4" /> Assign Interpreter

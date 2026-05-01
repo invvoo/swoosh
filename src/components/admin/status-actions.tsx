@@ -32,8 +32,9 @@ function getActions(jobType: string, status: string): Action[] {
     if (status === 'returned') return [{ label: 'Settle Deposit & Close', newStatus: 'complete', confirm: 'Settle deposit and close this job?' }]
   }
   if (jobType === 'interpretation') {
-    if (status === 'draft') return [{ label: 'Confirm & Send Quote', newStatus: 'confirmed' }]
-    // confirmed + paid: assign via assign page (shown as a link in the job detail, not here)
+    if (status === 'draft') return [{ label: 'Send Quote', newStatus: 'quote_sent' }]
+    if (status === 'quote_sent') return [{ label: 'Mark Quote Accepted', newStatus: 'quote_accepted' }]
+    // quote_accepted: payment via ManualPaymentButton or Stripe — assign page opens once paid
     if (status === 'assigned') return [{ label: 'Mark Completed', newStatus: 'completed', confirm: 'Mark interpretation as completed?' }]
     if (status === 'completed') return [{ label: 'Mark Invoiced', newStatus: 'invoiced' }]
     if (status === 'invoiced') return [{ label: 'Close Job', newStatus: 'complete', confirm: 'Mark interpreter paid and close this job?' }]
