@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     translator_id: translator.id,
     amount: parsed.data.amount,
     status: 'submitted',
-    note: parsed.data.note ?? null,
+    notes: parsed.data.note ?? null,
   } as any)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
