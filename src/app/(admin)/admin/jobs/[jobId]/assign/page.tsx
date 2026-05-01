@@ -52,6 +52,7 @@ export default function AssignPage() {
   const [selectedId, setSelectedId] = useState('')
   const [deadline, setDeadline] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [assignError, setAssignError] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -79,6 +80,7 @@ export default function AssignPage() {
   async function handleAssign() {
     if (!selectedId) return alert('Please select a translator.')
     setSubmitting(true)
+    setAssignError(null)
     const res = await fetch(`/api/admin/jobs/${jobId}/assign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,7 +89,8 @@ export default function AssignPage() {
     if (res.ok) {
       router.push(`/admin/jobs/${jobId}`)
     } else {
-      alert('Failed to assign. Check logs.')
+      const data = await res.json().catch(() => ({}))
+      setAssignError(typeof data.error === 'string' ? data.error : 'Assignment failed. Check server logs.')
       setSubmitting(false)
     }
   }
@@ -176,6 +179,11 @@ export default function AssignPage() {
             ? <><Loader2 className="h-4 w-4 animate-spin" /> Assigning…</>
             : `Assign ${isInterpretation ? 'Interpreter' : 'Translator'}`}
         </Button>
+        {assignError && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
+            {assignError}
+          </div>
+        )}
       </div>
     </div>
   )
