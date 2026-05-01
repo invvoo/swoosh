@@ -13,6 +13,8 @@ import { TranslationWorkflowActions } from '@/components/admin/translation-workf
 import { AdminNotesPanel } from '@/components/admin/admin-notes-panel'
 import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
 import { AdminJobProgressBar } from '@/components/admin/admin-job-progress-bar'
+import { SendInterpreterInquiryButton } from '@/components/admin/send-interpreter-inquiry-button'
+import { InterpreterBidsPanel } from '@/components/admin/interpreter-bids-panel'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -30,12 +32,14 @@ export default async function JobDetailPage({ params }: Props) {
     { data: translatorInvoice },
     { data: adminEmployee },
     { data: allEmployees },
+    { data: interpreterBids },
   ] = await Promise.all([
     (supabase as any).from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name), handler:employees!jobs_handled_by_fkey(id, full_name)').eq('id', jobId).single(),
     supabase.from('job_status_history').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
     supabase.from('translator_invoices').select('*').eq('job_id', jobId).maybeSingle(),
     user ? supabase.from('employees').select('id, full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from('employees').select('id, full_name').order('full_name'),
+    (supabase as any).from('interpreter_bids').select('id, status, rate, rate_notes, responded_at, translators:translator_id(id, full_name, email)').eq('job_id', jobId).order('created_at', { ascending: true }),
   ])
 
   if (!job) notFound()
@@ -113,13 +117,20 @@ export default async function JobDetailPage({ params }: Props) {
                 <Button variant="outline" size="sm">Review / Edit Quote</Button>
               </Link>
             )}
-            {/* Interpretation: assign page handles interpreter selection + confirmation email */}
-            {job.job_type === 'interpretation' && ['confirmed', 'quote_accepted', 'paid'].includes(job.status) && (
-              <Link href={`/admin/jobs/${jobId}/assign`}>
-                <Button size="sm" className="bg-[#1a1a2e] hover:bg-[#2a2a4e]">
-                  <UserCheck className="h-4 w-4" /> Assign Interpreter
-                </Button>
-              </Link>
+            {/* Interpretation: send inquiry to interpreters or assign directly */}
+            {job.job_type === 'interpretation' && ['quote_accepted', 'paid'].includes(job.status) && (
+              <>
+                <SendInterpreterInquiryButton
+                  jobId={jobId}
+                  sourceLang={job.source_lang}
+                  targetLang={job.target_lang}
+                />
+                <Link href={`/admin/jobs/${jobId}/assign`}>
+                  <Button size="sm" variant="outline">
+                    <UserCheck className="h-4 w-4 mr-1" /> Assign Directly
+                  </Button>
+                </Link>
+              </>
             )}
           </>
         )}
@@ -214,6 +225,12 @@ export default async function JobDetailPage({ params }: Props) {
               </div>
             )}
             {job.location_details && <div className="flex gap-2"><dt className="text-gray-500 w-24">Location</dt><dd>{job.location_details}</dd></div>}
+            {(job as any).assignment_type && (
+              <div className="flex gap-2">
+                <dt className="text-gray-500 w-24">Assignment</dt>
+                <dd className="capitalize">{(job as any).assignment_type.replace(/_/g, ' ')}</dd>
+              </div>
+            )}
             {(job as any).interpretation_mode && (
               <div className="flex gap-2">
                 <dt className="text-gray-500 w-24">Mode</dt>
@@ -358,6 +375,17 @@ export default async function JobDetailPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      {/* Interpreter bids — interpretation jobs only */}
+      {job.job_type === 'interpretation' && (
+        <div className="mt-6">
+          <InterpreterBidsPanel
+            jobId={jobId}
+            bids={(interpreterBids ?? []) as any}
+            assignedTranslatorId={(job as any).assigned_translator_id ?? null}
+          />
+        </div>
+      )}
 
       {/* Status History */}
       {history && history.length > 0 && (

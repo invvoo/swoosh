@@ -55,6 +55,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/vendor') &&
     !pathname.startsWith('/vendor/login') &&
     !pathname.startsWith('/vendor/signup') &&
+    !pathname.startsWith('/vendor/interpret-inquiry') &&
     !user
   ) {
     const url = request.nextUrl.clone()

@@ -11,10 +11,20 @@ import { SORTED_LANGUAGES } from '@/lib/languages'
 import { formatCurrency } from '@/lib/utils'
 import { ServiceNavLinks } from '@/components/service-nav-links'
 
+const ASSIGNMENT_TYPES = [
+  { value: 'conference',        label: 'Conference / Large Event',   hint: 'Symposium, summit, or multi-speaker event' },
+  { value: 'business_meeting',  label: 'Business Meeting',           hint: 'Corporate meeting, negotiations, presentations' },
+  { value: 'attorney_client',   label: 'Attorney-Client Meeting',    hint: 'Legal consultations, client-attorney meetings' },
+  { value: 'hospital_visit',    label: 'Hospital / Medical Visit',   hint: 'Medical appointments, hospital visits, clinics' },
+  { value: 'court_trial',       label: 'Court Trial / Hearing',      hint: 'In-court proceedings, trials, hearings' },
+  { value: 'deposition',        label: 'Deposition',                 hint: 'Recorded depositions for legal proceedings' },
+  { value: 'other',             label: 'Other',                      hint: 'Escort, interview, or other assignment type' },
+]
+
 const LOCATION_TYPES = [
-  { value: 'in_person', label: 'In-Person' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'video', label: 'Video / Remote' },
+  { value: 'in_person', label: 'In-Person (physical location)', hint: '' },
+  { value: 'video',     label: 'Remote / Video Call',           hint: '$4/min · 30-minute minimum' },
+  { value: 'phone',     label: 'Over the Phone',                hint: '$4/min · 30-minute minimum' },
 ]
 
 const INTERP_MODES = [
@@ -47,6 +57,7 @@ const SIMULTANEOUS_SURCHARGE = 100 // per interpreter
 export default function InterpretationRequestPage() {
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientPhone: '', clientCompany: '',
+    assignmentType: '',
     sourceLang: '', targetLang: '', scheduledAt: '', durationMinutes: '60',
     locationType: 'in_person', locationDetails: '', interpreterNotes: '',
     interpretationMode: 'consecutive',
@@ -97,6 +108,7 @@ export default function InterpretationRequestPage() {
       body: JSON.stringify({
         clientName: form.clientName, clientEmail: form.clientEmail,
         clientPhone: form.clientPhone || undefined, clientCompany: form.clientCompany || undefined,
+        assignmentType: form.assignmentType || undefined,
         sourceLang: form.sourceLang, targetLang: form.targetLang,
         scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         durationMinutes: durationMin,
@@ -180,8 +192,26 @@ export default function InterpretationRequestPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2 space-y-1.5"><Label>Full Name *</Label><Input required value={form.clientName} onChange={set('clientName')} /></div>
               <div className="space-y-1.5"><Label>Email *</Label><Input type="email" required value={form.clientEmail} onChange={set('clientEmail')} /></div>
-              <div className="space-y-1.5"><Label>Phone</Label><Input value={form.clientPhone} onChange={set('clientPhone')} /></div>
+              <div className="space-y-1.5"><Label>Phone <span className="text-red-500">*</span></Label><Input type="tel" required value={form.clientPhone} onChange={set('clientPhone')} placeholder="(213) 555-0100" /></div>
               <div className="col-span-2 space-y-1.5"><Label>Organization / Company</Label><Input value={form.clientCompany} onChange={set('clientCompany')} /></div>
+            </div>
+          </div>
+
+          {/* Assignment type */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-1">Type of Assignment <span className="text-red-500">*</span></h2>
+            <p className="text-xs text-gray-400 mb-3">Select the type of event or proceeding requiring interpretation.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {ASSIGNMENT_TYPES.map((a) => (
+                <button
+                  key={a.value} type="button"
+                  onClick={() => setForm((f) => ({ ...f, assignmentType: a.value }))}
+                  className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${form.assignmentType === a.value ? 'border-[#1a1a2e] bg-[#1a1a2e] text-white' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                >
+                  <p className="font-medium leading-tight">{a.label}</p>
+                  <p className={`text-[10px] mt-0.5 leading-tight ${form.assignmentType === a.value ? 'text-white/70' : 'text-gray-400'}`}>{a.hint}</p>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -273,12 +303,24 @@ export default function InterpretationRequestPage() {
                 <Label>Duration (minutes)</Label>
                 <Input type="number" min="30" value={form.durationMinutes} onChange={set('durationMinutes')} />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-2">
                 <Label>Format *</Label>
-                <select className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]"
-                  value={form.locationType} onChange={set('locationType')}>
-                  {LOCATION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                <div className="grid grid-cols-3 gap-2">
+                  {LOCATION_TYPES.map((t) => (
+                    <button key={t.value} type="button"
+                      onClick={() => setForm((f) => ({ ...f, locationType: t.value }))}
+                      className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${form.locationType === t.value ? 'border-[#1a1a2e] bg-[#1a1a2e] text-white' : 'border-gray-200 text-gray-700 hover:border-gray-300'}`}
+                    >
+                      <p className="font-medium leading-tight text-xs">{t.label}</p>
+                      {t.hint && <p className={`text-[10px] mt-0.5 ${form.locationType === t.value ? 'text-white/70' : 'text-gray-400'}`}>{t.hint}</p>}
+                    </button>
+                  ))}
+                </div>
+                {(form.locationType === 'video' || form.locationType === 'phone') && (
+                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2 mt-1">
+                    Remote / phone interpretation is billed at <strong>$4/minute</strong> with a <strong>30-minute minimum ($120)</strong>.
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Location / Address / Meeting Link</Label>

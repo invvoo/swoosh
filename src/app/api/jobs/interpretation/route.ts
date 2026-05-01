@@ -10,8 +10,9 @@ import { notifyAdminNewInquiry } from '@/lib/email/notify-admin'
 const schema = z.object({
   clientName: z.string().min(1),
   clientEmail: z.string().email(),
-  clientPhone: z.string().optional(),
+  clientPhone: z.string().min(1, 'Phone number is required'),
   clientCompany: z.string().optional(),
+  assignmentType: z.string().optional(),
   sourceLang: z.string().min(1),
   targetLang: z.string().min(1),
   scheduledAt: z.string().datetime({ offset: true }).optional(),
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
 
   const {
     clientName, clientEmail, clientPhone, clientCompany,
+    assignmentType,
     interpretationMode, interpretationCertRequired, numInterpreters,
     simultaneousSurcharge, equipmentRentalNeeded, equipmentDetails,
     ...jobData
@@ -66,6 +68,7 @@ export async function POST(req: NextRequest) {
       location_type: locationType,
       location_details: jobData.locationDetails ?? null,
       interpreter_notes: jobData.interpreterNotes ?? null,
+      assignment_type: assignmentType ?? null,
       interpretation_mode: interpretationMode ?? null,
       interpretation_cert_required: interpretationCertRequired ?? null,
       num_interpreters: numInterpreters ?? null,
