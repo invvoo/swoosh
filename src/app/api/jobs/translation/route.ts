@@ -79,7 +79,10 @@ export async function POST(req: NextRequest) {
 async function handleJson(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const parsed = jsonSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+  if (!parsed.success) {
+    const detail = parsed.error.issues.map((i) => i.message).join('; ')
+    return NextResponse.json({ error: 'Validation error', detail }, { status: 422 })
+  }
 
   const {
     clientName, clientEmail, clientPhone, clientCompany,
@@ -161,7 +164,10 @@ async function handleFormData(req: NextRequest) {
     detectedSourceLangConfidence: formData.get('detectedSourceLangConfidence') || undefined,
     requestedDeliveryDays: formData.get('requestedDeliveryDays') || undefined,
   })
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })
+  if (!parsed.success) {
+    const detail = parsed.error.issues.map((i) => i.message).join('; ')
+    return NextResponse.json({ error: 'Validation error', detail }, { status: 422 })
+  }
 
   const {
     clientName, clientEmail, clientPhone, clientCompany,

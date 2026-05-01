@@ -300,7 +300,7 @@ export default function TranslationRequestPage() {
         preComputedWordCount: detectedWordCount ?? undefined,
         serviceMode,
         reviewCertType: serviceMode === 'review' ? reviewCertType : undefined,
-        mailingOption: form.mailingOption !== 'none' ? form.mailingOption : undefined,
+        mailingOption: (form.mailingOption !== 'none' && form.mailingOption !== 'pickup') ? form.mailingOption : undefined,
         mailingFedex: form.mailingFedex || undefined,
       }),
     })

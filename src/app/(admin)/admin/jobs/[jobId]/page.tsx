@@ -11,6 +11,7 @@ import { JobFinalActions } from '@/components/admin/job-final-actions'
 import { ClaimJobButton } from '@/components/admin/claim-job-button'
 import { TranslationWorkflowActions } from '@/components/admin/translation-workflow-actions'
 import { AdminNotesPanel } from '@/components/admin/admin-notes-panel'
+import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -119,6 +120,11 @@ export default async function JobDetailPage({ params }: Props) {
           <Link href={`/admin/jobs/${jobId}/invoice`}>
             <Button variant="outline" size="sm">Record Vendor Invoice</Button>
           </Link>
+        )}
+
+        {/* Manual payment for in-person / phone orders that haven't been paid via Stripe */}
+        {['draft', 'quote_sent', 'quote_accepted', 'confirmed'].includes(job.status) && (
+          <ManualPaymentButton jobId={jobId} currentStatus={job.status} />
         )}
 
         {/* Final actions: Mark Complete (translation only after delivered) + Not Proceeding */}
