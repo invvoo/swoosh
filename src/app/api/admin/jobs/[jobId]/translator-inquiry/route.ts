@@ -4,6 +4,7 @@ import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { TranslationInquiryEmail } from '@/lib/email/templates/translation-inquiry'
 import { render as renderAsync } from '@react-email/components'
 import { z } from 'zod'
+import crypto from 'crypto'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? ''
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL ?? 'info@latranslation.com'
@@ -43,6 +44,36 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   for (const translator of translators) {
     try {
+      // Upsert a bid record so we can track the response
+      const token = crypto.randomBytes(32).toString('hex')
+      const { data: existingBid } = await (supabase as any)
+        .from('interpreter_bids')
+        .select('id, token')
+        .eq('job_id', jobId)
+        .eq('translator_id', translator.id)
+        .maybeSingle()
+
+      let bidToken = token
+      if (existingBid) {
+        // Re-send: keep existing token so old links still work; reset to pending
+        bidToken = existingBid.token
+        await (supabase as any).from('interpreter_bids').update({
+          status: 'pending',
+          responded_at: null,
+          updated_at: new Date().toISOString(),
+        }).eq('id', existingBid.id)
+      } else {
+        await (supabase as any).from('interpreter_bids').insert({
+          job_id: jobId,
+          translator_id: translator.id,
+          token: bidToken,
+          status: 'pending',
+        })
+      }
+
+      const interestedUrl = `${BASE_URL}/vendor/translation-inquiry/${bidToken}`
+      const declineUrl = `${BASE_URL}/vendor/translation-inquiry/${bidToken}?decline=1`
+
       const html = await renderAsync(TranslationInquiryEmail({
         translatorName: translator.full_name,
         sourceLang: job.source_lang ?? '',
@@ -54,7 +85,8 @@ export async function POST(req: NextRequest, { params }: Props) {
         documentName: job.document_name ?? undefined,
         adminEmail: ADMIN_EMAIL,
         adminPhone: ADMIN_PHONE,
-        vendorPortalUrl: `${BASE_URL}/vendor/jobs`,
+        interestedUrl,
+        declineUrl,
       }))
 
       const { error } = await getResend().emails.send({

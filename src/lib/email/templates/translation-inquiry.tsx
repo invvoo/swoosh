@@ -1,5 +1,5 @@
 import {
-  Html, Head, Body, Container, Heading, Text, Hr, Section, Row, Column,
+  Html, Head, Body, Container, Heading, Text, Hr, Section, Row, Column, Button,
 } from '@react-email/components'
 
 interface TranslationInquiryEmailProps {
@@ -9,11 +9,12 @@ interface TranslationInquiryEmailProps {
   wordCount: number
   specialty: string
   turnaroundDays?: number
-  quotedRate?: number          // per-word rate offered
+  quotedRate?: number
   documentName?: string
   adminEmail: string
   adminPhone: string
-  vendorPortalUrl: string
+  interestedUrl: string
+  declineUrl: string
 }
 
 export function TranslationInquiryEmail({
@@ -27,7 +28,8 @@ export function TranslationInquiryEmail({
   documentName,
   adminEmail,
   adminPhone,
-  vendorPortalUrl,
+  interestedUrl,
+  declineUrl,
 }: TranslationInquiryEmailProps) {
   const langLabel = `${sourceLang} → ${targetLang}`
 
@@ -43,8 +45,8 @@ export function TranslationInquiryEmail({
             Hi {translatorName},
           </Text>
           <Text style={{ color: '#444', fontSize: 15 }}>
-            We have a new translation job and would like to know if you are available and can
-            confirm your rate. Please review the details below.
+            We have a new translation job and would like to know if you are available.
+            Please review the details below and click a button to respond.
           </Text>
 
           <Section style={{ backgroundColor: '#f5f5f5', borderRadius: 8, padding: '16px 20px', margin: '20px 0' }}>
@@ -80,28 +82,48 @@ export function TranslationInquiryEmail({
             )}
           </Section>
 
-          <Section style={{ backgroundColor: '#fffbeb', border: '1px solid #f59e0b', borderRadius: 8, padding: '12px 20px', margin: '0 0 20px' }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#92400e', margin: '0 0 4px' }}>
-              Please reply with:
-            </Text>
-            <Text style={{ color: '#78350f', fontSize: 13, margin: 0 }}>
-              1. Whether you are available to complete this job within the turnaround time<br />
-              2. Your rate per word (or confirmation of the offered rate above)
-            </Text>
-          </Section>
+          <Text style={{ color: '#444', fontSize: 14, marginBottom: 16 }}>
+            Please click one of the buttons below to let us know your availability:
+          </Text>
 
-          <Text style={{ color: '#444', fontSize: 14, margin: '0 0 8px' }}>
-            Reply to this email or contact us at{' '}
-            <a href={`mailto:${adminEmail}`} style={{ color: '#1a1a2e' }}>{adminEmail}</a>
-            {' '}/ {adminPhone}
-          </Text>
-          <Text style={{ color: '#444', fontSize: 14, margin: '0 0 8px' }}>
-            <a href={vendorPortalUrl} style={{ color: '#1a1a2e', fontWeight: 'bold' }}>Log in to Vendor Portal →</a>
-          </Text>
+          <Section style={{ textAlign: 'center', margin: '0 0 20px' }}>
+            <Button
+              href={interestedUrl}
+              style={{
+                backgroundColor: '#16a34a',
+                color: '#ffffff',
+                padding: '12px 28px',
+                borderRadius: 6,
+                fontSize: 15,
+                fontWeight: 'bold',
+                textDecoration: 'none',
+                display: 'inline-block',
+                marginRight: 12,
+              }}
+            >
+              ✓ Yes, I'm Available
+            </Button>
+            <Button
+              href={declineUrl}
+              style={{
+                backgroundColor: '#e5e7eb',
+                color: '#374151',
+                padding: '12px 28px',
+                borderRadius: 6,
+                fontSize: 15,
+                fontWeight: 'bold',
+                textDecoration: 'none',
+                display: 'inline-block',
+              }}
+            >
+              Not Available
+            </Button>
+          </Section>
 
           <Hr style={{ margin: '24px 0', borderColor: '#eee' }} />
           <Text style={{ color: '#888', fontSize: 13 }}>
-            L.A. Translation &amp; Interpretation · 2975 Wilshire Blvd #205, Los Angeles, CA 90010
+            Questions? Contact us: <a href={`mailto:${adminEmail}`} style={{ color: '#1a1a2e' }}>{adminEmail}</a> · {adminPhone}
+            <br />L.A. Translation &amp; Interpretation · 2975 Wilshire Blvd #205, Los Angeles, CA 90010
           </Text>
         </Container>
       </Body>

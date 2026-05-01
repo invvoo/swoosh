@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime, cn } from '@/lib/utils'
 import Link from 'next/link'
-import { ArrowLeft, FileText, User, Clock, AlertTriangle, UserCheck } from 'lucide-react'
+import { ArrowLeft, FileText, User, Clock, AlertTriangle, UserCheck, Eye } from 'lucide-react'
 import { StatusActions } from '@/components/admin/status-actions'
 import { JobFinalActions } from '@/components/admin/job-final-actions'
 import { ClaimJobButton } from '@/components/admin/claim-job-button'
@@ -15,7 +15,9 @@ import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
 import { AdminJobProgressBar } from '@/components/admin/admin-job-progress-bar'
 import { SendInterpreterInquiryButton } from '@/components/admin/send-interpreter-inquiry-button'
 import { InterpreterBidsPanel } from '@/components/admin/interpreter-bids-panel'
+import { TranslatorBidsPanel } from '@/components/admin/translator-bids-panel'
 import { ResendAcceptanceButton } from '@/components/admin/resend-acceptance-button'
+import { AssignReviewerButton } from '@/components/admin/assign-reviewer-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -34,16 +36,22 @@ export default async function JobDetailPage({ params }: Props) {
     { data: adminEmployee },
     { data: allEmployees },
     { data: interpreterBids },
+    { data: translatorBids },
   ] = await Promise.all([
-    (supabase as any).from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name), handler:employees!jobs_handled_by_fkey(id, full_name)').eq('id', jobId).single(),
+    (supabase as any).from('jobs').select('*, clients(*), translators:assigned_translator_id(*), specialty_multipliers:specialty_id(name), handler:employees!jobs_handled_by_fkey(id, full_name), reviewer:employees!jobs_reviewer_id_fkey(id, full_name)').eq('id', jobId).single(),
     supabase.from('job_status_history').select('*').eq('job_id', jobId).order('created_at', { ascending: false }),
     supabase.from('translator_invoices').select('*').eq('job_id', jobId).maybeSingle(),
     user ? supabase.from('employees').select('id, full_name').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from('employees').select('id, full_name').order('full_name'),
     (supabase as any).from('interpreter_bids').select('id, status, rate, rate_notes, responded_at, translators:translator_id(id, full_name, email)').eq('job_id', jobId).order('created_at', { ascending: true }),
+    (supabase as any).from('interpreter_bids').select('id, status, rate_notes, responded_at, translators:translator_id(id, full_name, email)').eq('job_id', jobId).order('created_at', { ascending: true }),
   ])
 
   if (!job) notFound()
+
+  // Separate interpreter bids vs translator bids by job type (they share the interpreter_bids table)
+  // For translation jobs, all bids are "translator bids"; for interpretation, they're "interpreter bids"
+  const isTranslationJob = job.job_type === 'translation'
 
   // Resolve employee names for history entries
   const changedByIds = Array.from(new Set((history ?? []).map((h: any) => h.changed_by).filter(Boolean)))
@@ -55,13 +63,13 @@ export default async function JobDetailPage({ params }: Props) {
 
   const adminName = (adminEmployee as any)?.full_name ?? user?.email ?? 'Admin'
   const handler = (job as any).handler as { id: string; full_name: string } | null
+  const reviewer = (job as any).reviewer as { id: string; full_name: string } | null
   const employees = (allEmployees ?? []) as { id: string; full_name: string }[]
   const displayAmount = job.quote_adjusted_amount ?? job.quote_amount
   const client = job.clients as any
   const translator = job.translators as any
   const specialty = job.specialty_multipliers as any
   const documentPaths = (job as any).document_paths as { path: string; name: string }[] | null
-  // Build the list of original documents to show (use document_paths if available, fall back to document_path)
   const originalDocs: { label: string; href: string }[] = (() => {
     if (documentPaths && documentPaths.length > 0) {
       return documentPaths.map((d, i) => ({
@@ -96,12 +104,11 @@ export default async function JobDetailPage({ params }: Props) {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2 mb-8">
-        {/* Translation: guided primary CTA per status */}
         {job.job_type === 'translation' && (
           <TranslationWorkflowActions
             jobId={jobId}
             status={job.status}
-            hasDocument={!!(job as any).document_path}
+            hasDocument={!!(job as any).document_path || !!(documentPaths?.length)}
             hasAiDraft={!!(job as any).ai_draft_path}
             hasVendorSubmission={!!(job as any).translated_doc_path}
             sourceLang={job.source_lang}
@@ -109,7 +116,6 @@ export default async function JobDetailPage({ params }: Props) {
           />
         )}
 
-        {/* Non-translation: sequential status buttons */}
         {job.job_type !== 'translation' && (
           <>
             <StatusActions jobId={jobId} jobType={job.job_type} status={job.status} />
@@ -118,7 +124,6 @@ export default async function JobDetailPage({ params }: Props) {
                 <Button variant="outline" size="sm">Review / Edit Quote</Button>
               </Link>
             )}
-            {/* Interpretation: send inquiry to interpreters or assign directly */}
             {job.job_type === 'interpretation' && ['quote_accepted', 'paid'].includes(job.status) && (
               <>
                 <SendInterpreterInquiryButton
@@ -139,40 +144,52 @@ export default async function JobDetailPage({ params }: Props) {
           </>
         )}
 
-        {/* View original document(s) — one button per uploaded file */}
         {job.job_type === 'translation' && originalDocs.map((doc) => (
           <a key={doc.href} href={doc.href} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="max-w-[220px] truncate">{doc.label}</Button>
           </a>
         ))}
 
-        {/* Record vendor invoice after delivery */}
         {!translatorInvoice && ['delivered', 'complete'].includes(job.status) && (
           <Link href={`/admin/jobs/${jobId}/invoice`}>
             <Button variant="outline" size="sm">Record Vendor Invoice</Button>
           </Link>
         )}
 
-        {/* Manual payment for in-person / phone orders that haven't been paid via Stripe */}
         {['draft', 'quote_sent', 'quote_accepted', 'confirmed'].includes(job.status) && (
           <ManualPaymentButton jobId={jobId} currentStatus={job.status} quoteAmount={displayAmount != null ? Number(displayAmount) : undefined} />
         )}
 
-        {/* Final actions: Mark Complete (translation only after delivered) + Not Proceeding */}
         <JobFinalActions jobId={jobId} status={job.status} adminName={adminName} jobType={job.job_type} />
       </div>
 
-      {/* Handler assignment */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex items-center gap-3">
-        <UserCheck className="h-4 w-4 text-gray-400 shrink-0" />
-        <span className="text-sm text-gray-500 w-24 shrink-0">Handled by</span>
-        {user && (
-          <ClaimJobButton
-            jobId={jobId}
-            currentUserId={user.id}
-            handler={handler}
-            employees={employees}
-          />
+      {/* Handler + Reviewer row */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <UserCheck className="h-4 w-4 text-gray-400 shrink-0" />
+          <span className="text-sm text-gray-500 w-20 shrink-0">Handled by</span>
+          {user && (
+            <ClaimJobButton
+              jobId={jobId}
+              currentUserId={user.id}
+              handler={handler}
+              employees={employees}
+            />
+          )}
+        </div>
+
+        {/* Internal reviewer — translation jobs only */}
+        {job.job_type === 'translation' && (
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Eye className="h-4 w-4 text-gray-400 shrink-0" />
+            <span className="text-sm text-gray-500 w-20 shrink-0">Reviewer</span>
+            <AssignReviewerButton
+              jobId={jobId}
+              employees={employees}
+              currentReviewerId={reviewer?.id ?? null}
+              currentReviewerName={reviewer?.full_name ?? null}
+            />
+          </div>
         )}
       </div>
 
@@ -209,11 +226,7 @@ export default async function JobDetailPage({ params }: Props) {
               )
             })()}
             {(job as any).certification_type && (() => {
-              const certLabels: Record<string, string> = {
-                none: 'None',
-                general: 'General / Company',
-                court: 'Court Certified',
-              }
+              const certLabels: Record<string, string> = { none: 'None', general: 'General / Company', court: 'Court Certified' }
               return (
                 <div className="flex gap-2"><dt className="text-gray-500 w-24">Certification</dt><dd>{certLabels[(job as any).certification_type] ?? (job as any).certification_type}</dd></div>
               )
@@ -297,7 +310,6 @@ export default async function JobDetailPage({ params }: Props) {
                 <dd>{Math.floor((job as any).media_duration_seconds / 60)}m {(job as any).media_duration_seconds % 60}s</dd>
               </div>
             )}
-            {/* Rate breakdown */}
             {(job as any).quote_per_word_rate != null && (
               <div className="flex gap-2">
                 <dt className="text-gray-500 w-24">Rate</dt>
@@ -356,10 +368,12 @@ export default async function JobDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Assignment */}
+        {/* Assigned Translator (external vendor) */}
         {translator && (
           <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-900 mb-3">Assigned Translator</h2>
+            <h2 className="font-semibold text-gray-900 mb-3">
+              {job.job_type === 'interpretation' ? 'Assigned Interpreter' : 'Assigned Translator'}
+            </h2>
             <dl className="space-y-1.5 text-sm">
               <div className="flex gap-2"><dt className="text-gray-500 w-24">Name</dt><dd>{translator.full_name}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 w-24">Email</dt><dd><a href={`mailto:${translator.email}`} className="text-blue-600 hover:underline">{translator.email}</a></dd></div>
@@ -390,7 +404,18 @@ export default async function JobDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* Interpreter bids — interpretation jobs only */}
+      {/* Translator bids — translation jobs */}
+      {isTranslationJob && (
+        <div className="mt-6">
+          <TranslatorBidsPanel
+            jobId={jobId}
+            bids={(translatorBids ?? []) as any}
+            assignedTranslatorId={(job as any).assigned_translator_id ?? null}
+          />
+        </div>
+      )}
+
+      {/* Interpreter bids — interpretation jobs */}
       {job.job_type === 'interpretation' && (
         <div className="mt-6">
           <InterpreterBidsPanel
