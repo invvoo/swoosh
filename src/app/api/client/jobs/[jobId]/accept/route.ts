@@ -62,9 +62,10 @@ export async function POST(req: NextRequest, { params }: Props) {
     const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-proto')?.split(',')[0].trim() + '://' + req.headers.get('host')
     const baseUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? ''
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
       mode: 'payment',
-      customer: stripeCustomerId,
+      customer: stripeCustomerId ?? undefined,
+      customer_email: !stripeCustomerId ? (client as any).email : undefined,
       line_items: [{
         price_data: {
           currency: 'usd',
@@ -81,7 +82,24 @@ export async function POST(req: NextRequest, { params }: Props) {
       metadata: { jobId: job.id },
       success_url: `${baseUrl}/client/jobs/${job.id}?paid=1`,
       cancel_url: `${baseUrl}/client/jobs/${job.id}`,
-    })
+    }
+
+    let session
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams)
+    } catch (stripeErr: any) {
+      const isStaleCustomer =
+        (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer') ||
+        (typeof stripeErr?.message === 'string' && /no such customer/i.test(stripeErr.message))
+      if (isStaleCustomer && (client as any).email) {
+        const newCustomer = await stripe.customers.create({ name: (client as any).contact_name, email: (client as any).email })
+        stripeCustomerId = newCustomer.id
+        await service.from('clients').update({ stripe_customer_id: stripeCustomerId } as any).eq('id', client.id)
+        session = await stripe.checkout.sessions.create({ ...sessionParams, customer: stripeCustomerId, customer_email: undefined })
+      } else {
+        throw stripeErr
+      }
+    }
 
     await service.from('jobs')
       .update({ status: 'quote_accepted', quote_accepted_at: new Date().toISOString() } as any)

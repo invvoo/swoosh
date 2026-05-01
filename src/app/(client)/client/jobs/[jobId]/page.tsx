@@ -63,16 +63,36 @@ export default function ClientJobDetailPage() {
   const [accepting, setAccepting] = useState(false)
   const [acceptError, setAcceptError] = useState<string | null>(null)
 
+  async function fetchJob(userEmail: string) {
+    const res = await fetch(`/api/client/jobs/${jobId}`)
+    if (!res.ok) { setUnauthorized(true); setLoading(false); return null }
+    const data = await res.json()
+    setJob(data.job)
+    setLoading(false)
+    return data.job as JobDetail
+  }
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user?.email) { setUnauthorized(true); setLoading(false); return }
-      const res = await fetch(`/api/client/jobs/${jobId}`)
-      if (!res.ok) { setUnauthorized(true); setLoading(false); return }
-      const data = await res.json()
-      setJob(data.job)
-      setLoading(false)
+      const email = user.email
+      const loaded = await fetchJob(email)
+
+      // When returning from Stripe, poll until the webhook updates the status
+      if (justPaid && loaded && ['quote_sent', 'quote_accepted'].includes(loaded.status)) {
+        let attempts = 0
+        const interval = setInterval(async () => {
+          attempts++
+          const refreshed = await fetchJob(email)
+          if (!refreshed || !['quote_sent', 'quote_accepted'].includes(refreshed.status) || attempts >= 8) {
+            clearInterval(interval)
+          }
+        }, 2500)
+        return () => clearInterval(interval)
+      }
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId])
 
   async function handleAcceptQuote() {
@@ -112,7 +132,8 @@ export default function ClientJobDetailPage() {
   const displayAmount = Math.max(0, baseAmount - discountAmount)
   const langLabel = job.source_lang && job.target_lang ? `${job.source_lang} → ${job.target_lang}` : null
   const reference = job.invoice_number ?? job.id.slice(0, 8).toUpperCase()
-  // Suppress the payment card if Stripe just redirected back (webhook may not have fired yet)
+  // When returning from Stripe, treat the status as 'paid' for display until the webhook catches up
+  const displayStatus = (justPaid && ['quote_sent', 'quote_accepted'].includes(job.status)) ? 'paid' : job.status
   const isQuotePending = job.status === 'quote_sent' && !justPaid
   const isAwaitingPayment = job.status === 'quote_accepted' && !justPaid
 
@@ -145,7 +166,7 @@ export default function ClientJobDetailPage() {
         {/* Progress */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="font-semibold text-gray-900 mb-5">Order Status</h2>
-          <JobProgressBar jobType={job.job_type} status={job.status} />
+          <JobProgressBar jobType={job.job_type} status={displayStatus} />
         </div>
 
         {/* Quote acceptance card */}
