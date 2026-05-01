@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 import { SendTranslatorInquiryButton } from '@/components/admin/send-translator-inquiry-button'
 import { MarkReviewedDeliverButton } from '@/components/admin/mark-reviewed-deliver-button'
-import { Sparkles, UserPlus, Send, Eye, CheckCircle2, RefreshCw } from 'lucide-react'
+import { Sparkles, UserPlus, Send, Eye, CheckCircle2, RefreshCw, Upload } from 'lucide-react'
 
 interface Props {
   jobId: string
@@ -91,15 +91,17 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
           </Button>
         </Link>
         {hasAiDraft && (
-          <>
-            <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
-                <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
-              </Button>
-            </a>
-            <MarkReviewedDeliverButton jobId={jobId} label="Deliver AI Draft to Client" />
-          </>
+          <a href={`/api/admin/jobs/${jobId}/document?type=draft`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> View AI Draft
+            </Button>
+          </a>
         )}
+        <Link href={`/admin/jobs/${jobId}/deliver`}>
+          <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+            <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+          </Button>
+        </Link>
       </div>
     )
   }
@@ -113,7 +115,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
               <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
-          <MarkReviewedDeliverButton jobId={jobId} label="Approve & Send to Client" />
+          <Link href={`/admin/jobs/${jobId}/deliver`}>
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+            </Button>
+          </Link>
         </div>
       )
     }
@@ -123,7 +129,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
           Translator assigned — awaiting submission
         </div>
         {(hasAiDraft || hasDocument) && (
-          <MarkReviewedDeliverButton jobId={jobId} label="Skip & Deliver Now" />
+          <Link href={`/admin/jobs/${jobId}/deliver`}>
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+            </Button>
+          </Link>
         )}
       </div>
     )
@@ -138,7 +148,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
               <Eye className="h-3.5 w-3.5 mr-1.5" /> Review Submission
             </Button>
           </Link>
-          <MarkReviewedDeliverButton jobId={jobId} label="Approve & Send to Client" />
+          <Link href={`/admin/jobs/${jobId}/deliver`}>
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+            </Button>
+          </Link>
         </div>
       )
     }
@@ -148,7 +162,11 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
           Translation in progress — awaiting vendor submission
         </div>
         {(hasAiDraft || hasDocument) && (
-          <MarkReviewedDeliverButton jobId={jobId} label="Skip & Deliver Now" />
+          <Link href={`/admin/jobs/${jobId}/deliver`}>
+            <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+              <Upload className="h-3.5 w-3.5 mr-1.5" /> Deliver to Client
+            </Button>
+          </Link>
         )}
       </div>
     )
