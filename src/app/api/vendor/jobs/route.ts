@@ -23,9 +23,9 @@ export async function GET() {
     return NextResponse.json({ error: 'pending_approval', message: 'Your application is pending review.' }, { status: 403 })
   }
 
-  const { data: jobs } = await service
+  const { data: jobs } = await (service as any)
     .from('jobs')
-    .select('id, job_type, status, source_lang, target_lang, word_count, invoice_number, deadline_at, assigned_at, created_at, document_name, document_path, ai_draft_path, clients(contact_name)')
+    .select('id, job_type, status, source_lang, target_lang, word_count, invoice_number, deadline_at, assigned_at, created_at, document_name, document_path, ai_draft_path, translated_doc_path, vendor_confirmed_rate, vendor_accepted_at, vendor_overtime_requested, translator_acceptance_token, clients(contact_name)')
     .eq('assigned_translator_id', translator.id)
     .order('created_at', { ascending: false })
 

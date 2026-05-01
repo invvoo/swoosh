@@ -6,6 +6,7 @@ import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { TranslatorAssignedEmail } from '@/lib/email/templates/translator-assigned'
 import { InterpreterAssignedEmail } from '@/lib/email/templates/interpreter-assigned'
 import { render as renderAsync } from '@react-email/components'
+import crypto from 'crypto'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -94,12 +95,35 @@ export async function POST(req: NextRequest, { params }: Props) {
   // Generate PO number for all assignments
   const poNumber = await generatePoNumber(service)
 
+  // For interpretation: pull confirmed rate from an accepted bid if one exists
+  let vendorConfirmedRate: number | null = null
+  if ((job as any).job_type === 'interpretation') {
+    const { data: bid } = await (service as any)
+      .from('interpreter_bids')
+      .select('rate')
+      .eq('job_id', jobId)
+      .eq('translator_id', translatorId)
+      .in('status', ['interested', 'pending'])
+      .maybeSingle()
+    if (bid?.rate != null) vendorConfirmedRate = Number(bid.rate)
+    // Mark bid as assigned
+    await (service as any).from('interpreter_bids').update({ status: 'assigned', updated_at: new Date().toISOString() }).eq('job_id', jobId).eq('translator_id', translatorId)
+  }
+
+  // For translation: generate acceptance token so translator confirms their rate
+  let translatorAcceptanceToken: string | null = null
+  if ((job as any).job_type !== 'interpretation') {
+    translatorAcceptanceToken = crypto.randomBytes(32).toString('hex')
+  }
+
   await service.from('jobs').update({
     assigned_translator_id: translatorId,
     assigned_at: new Date().toISOString(),
     deadline_at: deadlineAt ?? null,
     status: 'assigned',
     po_number: poNumber,
+    ...(vendorConfirmedRate != null ? { vendor_confirmed_rate: vendorConfirmedRate } : {}),
+    ...(translatorAcceptanceToken ? { translator_acceptance_token: translatorAcceptanceToken } : {}),
   } as any).eq('id', jobId)
 
   await service.from('job_status_history').insert({
@@ -204,6 +228,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         jobPortalUrl: `${baseUrl}/vendor/jobs/${jobId}`,
         originalDocUrl: `${baseUrl}/api/admin/jobs/${jobId}/document`,
         aiDraftUrl: (job as any).ai_draft_path ? `${baseUrl}/api/admin/jobs/${jobId}/document?type=draft` : undefined,
+        acceptanceUrl: translatorAcceptanceToken ? `${baseUrl}/vendor/translation-acceptance/${translatorAcceptanceToken}` : undefined,
       }))
 
       const { data: emailData, error: emailError } = await getResend().emails.send({

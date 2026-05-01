@@ -215,33 +215,37 @@ export default function VendorSignupPage() {
 
             {['translator', 'both'].includes(form.vendorType) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Per-Word Rate (USD)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Per-Word Rate (USD) <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                   <input
-                    type="number" min="0.01" step="0.001" value={form.perWordRate}
+                    type="number" min="0.001" step="0.001" required value={form.perWordRate}
                     onChange={(e) => setForm((f) => ({ ...f, perWordRate: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
                     placeholder="0.08"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Your rate per source word for translation work.</p>
+                <p className="text-xs text-gray-400 mt-1">Your base rate per source word. This is pre-filled when you confirm a job — you can adjust per assignment.</p>
               </div>
             )}
 
             {['interpreter', 'both', 'notary', 'other'].includes(form.vendorType) && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Rate (USD)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Base Rate (USD) <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                   <input
-                    type="number" min="1" step="1" value={form.hourlyRate}
+                    type="number" min="1" step="1" required value={form.hourlyRate}
                     onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
-                    placeholder="75"
+                    placeholder="150"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Your rate per hour.</p>
+                <p className="text-xs text-gray-400 mt-1">Your base rate per assignment. This is pre-filled when you bid on a job — you can adjust per assignment.</p>
               </div>
             )}
 

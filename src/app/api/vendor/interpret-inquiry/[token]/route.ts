@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
   const { data: bid } = await (service as any)
     .from('interpreter_bids')
-    .select('id, status, rate, rate_notes, translator_id, job_id, translators(full_name, email), jobs(source_lang, target_lang, scheduled_at, duration_minutes, location_type, location_details, assignment_type, interpretation_mode, interpretation_cert_required, interpreter_notes)')
+    .select('id, status, rate, rate_notes, translator_id, job_id, translators(full_name, email, hourly_rate), jobs(source_lang, target_lang, scheduled_at, duration_minutes, location_type, location_details, assignment_type, interpretation_mode, interpretation_cert_required, interpreter_notes)')
     .eq('token', token)
     .single() as any
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, Loader2, FileText, Clock, Upload, CheckCircle, AlertCircle, Send } from 'lucide-react'
+import { ArrowLeft, Download, Loader2, FileText, Clock, Upload, CheckCircle, AlertCircle, Send, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,8 @@ interface VendorJob {
   deadline_at: string | null; assigned_at: string | null; created_at: string
   document_name: string | null; document_path: string | null; ai_draft_path: string | null
   translated_doc_path: string | null; clients: { contact_name: string } | null
+  vendor_confirmed_rate: number | null; vendor_accepted_at: string | null
+  vendor_overtime_requested: boolean | null; translator_acceptance_token: string | null
 }
 
 interface InvoiceInfo { id: string; amount: number; status: string }
@@ -36,12 +38,18 @@ export default function VendorJobDetailPage() {
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
   const [invoiceDone, setInvoiceDone] = useState(false)
+  const [overtimeRequested, setOvertimeRequested] = useState(false)
+  const [overtimeNotes, setOvertimeNotes] = useState('')
 
   useEffect(() => {
     fetch('/api/vendor/jobs').then(async (r) => {
       const d = await r.json()
       const found = (d.jobs ?? []).find((j: VendorJob) => j.id === jobId)
       setJob(found ?? null)
+      // Pre-fill invoice amount from confirmed rate
+      if (found?.vendor_confirmed_rate != null) {
+        setInvoiceAmount(String(Number(found.vendor_confirmed_rate).toFixed(2)))
+      }
       setLoading(false)
     })
     fetch(`/api/vendor/jobs/${jobId}/invoice-status`).then(async (r) => {
@@ -79,7 +87,12 @@ export default function VendorJobDetailPage() {
     const res = await fetch(`/api/vendor/jobs/${jobId}/invoice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, note: invoiceNote || undefined }),
+      body: JSON.stringify({
+        amount,
+        note: invoiceNote || undefined,
+        overtimeRequested: overtimeRequested || undefined,
+        overtimeNotes: overtimeNotes || undefined,
+      }),
     })
     const data = await res.json().catch(() => ({}))
     setInvoiceSubmitting(false)
@@ -106,6 +119,9 @@ export default function VendorJobDetailPage() {
   const alreadySubmitted = !!job.translated_doc_path || uploadDone
   const canSubmitWork = ['assigned', 'in_progress'].includes(job.status)
   const canSubmitInvoice = ['in_progress', 'delivered', 'complete'].includes(job.status) && !invoice && !invoiceDone
+  const isInterpreter = job.job_type === 'interpretation'
+  const needsAcceptance = !isInterpreter && !job.vendor_accepted_at && !!job.translator_acceptance_token
+  const confirmedRate = job.vendor_confirmed_rate != null ? Number(job.vendor_confirmed_rate) : null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -117,6 +133,26 @@ export default function VendorJobDetailPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-5">
+
+        {/* Acceptance required banner */}
+        {needsAcceptance && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 flex items-start gap-4">
+            <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-amber-900 text-sm mb-1">Action Required: Accept This Job</p>
+              <p className="text-sm text-amber-800 mb-3">
+                Please confirm your acceptance and locked-in rate before starting work.
+                You won&apos;t be able to submit a translation or invoice until you accept.
+              </p>
+              <Link href={`/vendor/translation-acceptance/${job.translator_acceptance_token}`}>
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1.5">
+                  <ExternalLink className="h-3.5 w-3.5" /> Accept Job &amp; Confirm Rate
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Job info */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-start justify-between mb-4">
@@ -143,6 +179,12 @@ export default function VendorJobDetailPage() {
             {job.word_count && <div className="flex justify-between"><dt className="text-gray-500">Word count</dt><dd>{job.word_count.toLocaleString()} words</dd></div>}
             <div className="flex justify-between"><dt className="text-gray-500">Type</dt><dd className="capitalize">{job.job_type.replace(/_/g, ' ')}</dd></div>
             {job.assigned_at && <div className="flex justify-between"><dt className="text-gray-500">Assigned</dt><dd>{new Date(job.assigned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</dd></div>}
+            {confirmedRate != null && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Confirmed rate</dt>
+                <dd className="font-semibold text-green-700">${confirmedRate.toFixed(2)}</dd>
+              </div>
+            )}
           </dl>
         </div>
 
@@ -184,7 +226,7 @@ export default function VendorJobDetailPage() {
         </div>
 
         {/* Submit translation */}
-        {canSubmitWork && (
+        {canSubmitWork && !needsAcceptance && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-1">Submit Your Translation</h2>
             <p className="text-sm text-gray-500 mb-4">Upload your completed file. Your coordinator will review and deliver it to the client.</p>
@@ -219,10 +261,14 @@ export default function VendorJobDetailPage() {
         )}
 
         {/* Submit invoice */}
-        {canSubmitInvoice && (
+        {canSubmitInvoice && !needsAcceptance && (
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="font-semibold text-gray-900 mb-1">Submit Invoice</h2>
-            <p className="text-sm text-gray-500 mb-4">Enter your payment amount. Our team will review and process payment within 30 days of approval.</p>
+            <p className="text-sm text-gray-500 mb-4">
+              {confirmedRate != null && !isInterpreter
+                ? `Your confirmed rate is locked at $${confirmedRate.toFixed(2)}. This will be your invoice amount.`
+                : 'Our team will review and process payment within 30 days of approval.'}
+            </p>
             {invoiceDone ? (
               <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
                 <CheckCircle className="h-4 w-4 shrink-0" />
@@ -241,8 +287,40 @@ export default function VendorJobDetailPage() {
                     onChange={(e) => setInvoiceAmount(e.target.value)}
                     className="pl-6"
                     required
+                    readOnly={confirmedRate != null && !isInterpreter}
                   />
                 </div>
+
+                {/* Interpreter overtime toggle */}
+                {isInterpreter && confirmedRate != null && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={overtimeRequested}
+                        onChange={(e) => {
+                          setOvertimeRequested(e.target.checked)
+                          if (!e.target.checked) {
+                            setInvoiceAmount(confirmedRate.toFixed(2))
+                            setOvertimeNotes('')
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-700">Request overtime (invoice above confirmed rate)</span>
+                    </label>
+                    {overtimeRequested && (
+                      <textarea
+                        rows={2}
+                        value={overtimeNotes}
+                        onChange={(e) => setOvertimeNotes(e.target.value)}
+                        placeholder="Explain the reason for overtime (e.g. assignment ran 2 hours over)"
+                        className="w-full border border-amber-300 bg-amber-50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
+                      />
+                    )}
+                  </div>
+                )}
+
                 <Input
                   placeholder="Optional note to coordinator"
                   value={invoiceNote}

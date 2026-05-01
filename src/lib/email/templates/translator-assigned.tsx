@@ -12,6 +12,7 @@ interface Props {
   originalDocUrl: string
   aiDraftUrl?: string
   invoiceNumber?: string
+  acceptanceUrl?: string
 }
 
 export function TranslatorAssignedEmail({
@@ -24,6 +25,7 @@ export function TranslatorAssignedEmail({
   originalDocUrl,
   aiDraftUrl,
   invoiceNumber,
+  acceptanceUrl,
 }: Props) {
   const langLabel = sourceLang && targetLang ? `${sourceLang} → ${targetLang}` : 'Translation'
 
@@ -77,6 +79,24 @@ export function TranslatorAssignedEmail({
             >
               Download AI Draft
             </Button>
+          )}
+
+          {acceptanceUrl && (
+            <Section style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '16px 20px', margin: '20px 0' }}>
+              <Text style={{ fontSize: 14, color: '#166534', margin: '0 0 10px', fontWeight: 'bold' }}>
+                Action Required: Accept &amp; Confirm Your Rate
+              </Text>
+              <Text style={{ fontSize: 13, color: '#166534', margin: '0 0 14px' }}>
+                Please confirm your acceptance of this job and your rate before starting work.
+                Your rate will be locked in and used as the invoice amount.
+              </Text>
+              <Button
+                href={acceptanceUrl}
+                style={{ backgroundColor: '#16a34a', color: '#fff', padding: '10px 22px', borderRadius: 6, fontSize: 14, fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}
+              >
+                Accept Job &amp; Confirm Rate →
+              </Button>
+            </Section>
           )}
 
           <Text style={{ color: '#555', fontSize: 14, marginTop: 24 }}>

@@ -31,7 +31,7 @@ interface BidData {
   status: BidStatus
   rate: number | null
   rate_notes: string | null
-  translators: { full_name: string; email: string }
+  translators: { full_name: string; email: string; hourly_rate: number | null }
   jobs: {
     source_lang: string
     target_lang: string
@@ -72,7 +72,10 @@ export default function InterpreterBidPage() {
           } else if (data.bid.status === 'declined') {
             setPageState('done_declined')
           } else {
-            setPageState(autoDecline ? 'ready' : 'ready')
+            // Pre-fill rate: use existing bid rate if re-visiting, else translator's base hourly rate
+            const prefill = data.bid.rate ?? data.bid.translators?.hourly_rate
+            if (prefill != null) setRate(String(prefill))
+            setPageState('ready')
             if (autoDecline) setShowDeclineConfirm(true)
           }
         } else {
