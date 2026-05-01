@@ -116,7 +116,7 @@ export async function POST(req: NextRequest, { params }: Props) {
     translatorAcceptanceToken = crypto.randomBytes(32).toString('hex')
   }
 
-  await service.from('jobs').update({
+  const { error: jobUpdateError } = await (service as any).from('jobs').update({
     assigned_translator_id: translatorId,
     assigned_at: new Date().toISOString(),
     deadline_at: deadlineAt ?? null,
@@ -124,7 +124,12 @@ export async function POST(req: NextRequest, { params }: Props) {
     po_number: poNumber,
     ...(vendorConfirmedRate != null ? { vendor_confirmed_rate: vendorConfirmedRate } : {}),
     ...(translatorAcceptanceToken ? { translator_acceptance_token: translatorAcceptanceToken } : {}),
-  } as any).eq('id', jobId)
+  }).eq('id', jobId)
+
+  if (jobUpdateError) {
+    console.error('[assign] Job update failed:', jobUpdateError)
+    return NextResponse.json({ error: 'Job update failed — migrations may be pending. Run migrations 0019–0021 in Supabase.' }, { status: 500 })
+  }
 
   await service.from('job_status_history').insert({
     job_id: jobId,

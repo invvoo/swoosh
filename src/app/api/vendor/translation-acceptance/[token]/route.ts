@@ -8,12 +8,13 @@ export async function GET(_req: NextRequest, { params }: Props) {
   const { token } = await params
   const service = createServiceClient()
 
-  const { data: job } = await (service as any)
+  const { data: job, error: jobError } = await (service as any)
     .from('jobs')
     .select('id, status, source_lang, target_lang, word_count, deadline_at, invoice_number, vendor_confirmed_rate, vendor_accepted_at, assigned_translator_id, translators:assigned_translator_id(full_name, email, per_word_rate)')
     .eq('translator_acceptance_token', token)
     .single()
 
+  if (jobError) console.error('[translation-acceptance GET]', jobError)
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   return NextResponse.json({ job })
@@ -31,12 +32,13 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   const service = createServiceClient()
 
-  const { data: job } = await (service as any)
+  const { data: job, error: jobError } = await (service as any)
     .from('jobs')
     .select('id, status, vendor_accepted_at')
     .eq('translator_acceptance_token', token)
     .single()
 
+  if (jobError) console.error('[translation-acceptance POST]', jobError)
   if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (job.vendor_accepted_at) return NextResponse.json({ error: 'already_accepted' }, { status: 409 })
 
