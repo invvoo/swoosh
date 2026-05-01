@@ -15,6 +15,7 @@ import { ManualPaymentButton } from '@/components/admin/manual-payment-button'
 import { AdminJobProgressBar } from '@/components/admin/admin-job-progress-bar'
 import { SendInterpreterInquiryButton } from '@/components/admin/send-interpreter-inquiry-button'
 import { InterpreterBidsPanel } from '@/components/admin/interpreter-bids-panel'
+import { ResendAcceptanceButton } from '@/components/admin/resend-acceptance-button'
 
 interface Props {
   params: Promise<{ jobId: string }>
@@ -362,6 +363,16 @@ export default async function JobDetailPage({ params }: Props) {
             <dl className="space-y-1.5 text-sm">
               <div className="flex gap-2"><dt className="text-gray-500 w-24">Name</dt><dd>{translator.full_name}</dd></div>
               <div className="flex gap-2"><dt className="text-gray-500 w-24">Email</dt><dd><a href={`mailto:${translator.email}`} className="text-blue-600 hover:underline">{translator.email}</a></dd></div>
+              {job.job_type === 'translation' && (
+                <div className="flex gap-2 items-center">
+                  <dt className="text-gray-500 w-24">Acceptance</dt>
+                  <dd>
+                    {(job as any).vendor_accepted_at
+                      ? <span className="text-green-700 text-xs font-medium">✓ Accepted{(job as any).vendor_confirmed_rate ? ` · $${Number((job as any).vendor_confirmed_rate).toFixed(2)}` : ''}</span>
+                      : <ResendAcceptanceButton jobId={jobId} />}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
         )}
