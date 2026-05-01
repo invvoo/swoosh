@@ -54,8 +54,16 @@ export async function POST(_req: NextRequest, { params }: Props) {
     note: 'AI translation triggered manually',
   })
 
+  // Fetch custom AI translation rules from settings (falls back to default if empty)
+  const { data: rulesSetting } = await service
+    .from('system_settings')
+    .select('value')
+    .eq('key', 'ai_translation_rules')
+    .maybeSingle()
+  const customSystemPrompt = (rulesSetting as any)?.value?.trim() || undefined
+
   // Run translation async (don't await — respond immediately)
-  runTranslation({ jobId, job, specialtyName, service, userId: user.id }).catch((err) => {
+  runTranslation({ jobId, job, specialtyName, service, userId: user.id, customSystemPrompt }).catch((err) => {
     console.error('[ai-translate] Background error:', err)
   })
 
@@ -68,12 +76,14 @@ async function runTranslation({
   specialtyName,
   service,
   userId,
+  customSystemPrompt,
 }: {
   jobId: string
   job: any
   specialtyName: string
   service: ReturnType<typeof createServiceClient>
   userId: string
+  customSystemPrompt?: string
 }) {
   try {
     // Download original document from Storage
@@ -90,8 +100,8 @@ async function runTranslation({
     const text = await extractText(buffer, docName)
     if (!text.trim()) throw new Error('No text could be extracted from the document')
 
-    // Call Claude
-    const translated = await translateDocument(text, job.source_lang, job.target_lang, specialtyName)
+    // Call Claude — use admin-configured rules if set, otherwise default prompt
+    const translated = await translateDocument(text, job.source_lang, job.target_lang, specialtyName, customSystemPrompt)
 
     // Store as plain .txt draft (docx reconstruction can be added later)
     const draftPath = `documents/ai-draft/${jobId}/ai_draft.txt`

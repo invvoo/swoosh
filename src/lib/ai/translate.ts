@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You are a professional translator with expertise in certified, legal, medical, technical, and general document translation. When translating:
+const DEFAULT_SYSTEM_PROMPT = `You are a professional translator with expertise in certified, legal, medical, technical, and general document translation. When translating:
 - Preserve the original document structure and formatting as closely as possible
 - Maintain professional terminology appropriate for the subject matter
 - Do not add commentary, explanations, or notes — output only the translated text
@@ -13,12 +13,16 @@ export async function translateDocument(
   text: string,
   sourceLang: string,
   targetLang: string,
-  specialty: string
+  specialty: string,
+  systemPrompt?: string,
 ): Promise<string> {
+  const resolvedPrompt = (systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT)
+    .replace(/\[TARGET LANGUAGE\]/gi, targetLang)
+
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8096,
-    system: SYSTEM_PROMPT,
+    system: resolvedPrompt,
     messages: [
       {
         role: 'user',
@@ -44,6 +48,7 @@ export async function translateDocumentBuffer(
   sourceLang: string,
   targetLang: string,
   specialty: string,
+  systemPrompt?: string,
 ): Promise<string> {
   const fname = filename.toLowerCase()
 
@@ -69,13 +74,13 @@ export async function translateDocumentBuffer(
 
   // If we got meaningful text, translate it the normal way
   if (wordCount >= 20) {
-    return translateDocument(text, sourceLang, targetLang, specialty)
+    return translateDocument(text, sourceLang, targetLang, specialty, systemPrompt)
   }
 
   // ── Scanned / image-embedded PDF: pass buffer directly to Claude ──────────
   if (!fname.endsWith('.pdf')) {
     // For non-PDFs with no extractable text, translate whatever we got (or empty)
-    return text ? translateDocument(text, sourceLang, targetLang, specialty) : ''
+    return text ? translateDocument(text, sourceLang, targetLang, specialty, systemPrompt) : ''
   }
 
   // PDFs up to 20 MB can be passed as base64 document blocks
@@ -85,13 +90,16 @@ export async function translateDocumentBuffer(
     return ''
   }
 
+  const resolvedPrompt = (systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT)
+    .replace(/\[TARGET LANGUAGE\]/gi, targetLang)
+
   console.log(`[translate] scanned PDF detected (${wordCount} words from pdf-parse) — using Claude document vision for "${filename}"`)
   const base64 = buffer.toString('base64')
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8096,
-    system: SYSTEM_PROMPT,
+    system: resolvedPrompt,
     messages: [
       {
         role: 'user',

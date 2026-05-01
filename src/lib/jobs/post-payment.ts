@@ -143,12 +143,22 @@ async function handleTranslationPostPayment(
 
     const buffer = Buffer.from(await fileData.arrayBuffer())
     const specialtyName = (job.specialty_multipliers as any)?.name ?? 'General'
+
+    // Fetch admin-configured AI translation rules
+    const { data: rulesSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'ai_translation_rules')
+      .maybeSingle()
+    const customSystemPrompt = (rulesSetting as any)?.value?.trim() || undefined
+
     const translatedText = await translateDocumentBuffer(
       buffer,
       job.document_name ?? 'document.pdf',
       job.source_lang!,
       job.target_lang!,
       specialtyName,
+      customSystemPrompt,
     )
 
     const doc = new Document({
