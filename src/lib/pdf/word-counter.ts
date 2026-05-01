@@ -73,12 +73,12 @@ async function extractWordCountViaClaude(buffer: Buffer, filename: string): Prom
     return 0
   }
 
-  // PDFs larger than ~4 MB risk hitting token limits — cap at 4 MB
-  if (buffer.byteLength > 4 * 1024 * 1024) {
+  const MAX_BYTES = 32 * 1024 * 1024
+  if (buffer.byteLength > MAX_BYTES) {
     console.log(`[word-counter] file too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB) — skipping Claude fallback`)
     return 0
   }
-  console.log(`[word-counter] calling Claude Haiku for "${filename}" (${(buffer.byteLength / 1024).toFixed(0)} KB, ${mediaType})`)
+  console.log(`[word-counter] calling Claude for "${filename}" (${(buffer.byteLength / 1024).toFixed(0)} KB, ${mediaType})`)
 
   const client = new Anthropic({ apiKey })
   const base64 = buffer.toString('base64')
@@ -94,7 +94,7 @@ async function extractWordCountViaClaude(buffer: Buffer, filename: string): Prom
       ]
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: 'claude-sonnet-4-6',
     max_tokens: 16,
     messages: [{ role: 'user', content: contentBlock }],
   })

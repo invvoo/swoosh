@@ -93,8 +93,12 @@ export async function POST(req: NextRequest, { params }: Props) {
     try {
       session = await stripe.checkout.sessions.create(sessionParams)
     } catch (stripeErr: any) {
-      // Stored customer ID doesn't exist in this Stripe mode (e.g. test/live mismatch)
-      if (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer' && client?.email) {
+      // Stored customer ID doesn't exist in this Stripe mode (test→live switch or deleted customer)
+      const isStaleCustomer =
+        (stripeErr?.code === 'resource_missing' && stripeErr?.param === 'customer') ||
+        (typeof stripeErr?.message === 'string' && /no such customer/i.test(stripeErr.message))
+      if (isStaleCustomer && client?.email) {
+        console.log('[quote/accept] stale Stripe customer ID detected — creating fresh customer')
         const newCustomer = await stripe.customers.create({ name: client.contact_name, email: client.email })
         stripeCustomerId = newCustomer.id
         await supabase.from('clients').update({ stripe_customer_id: stripeCustomerId }).eq('email', client.email)

@@ -2,8 +2,7 @@ import { render as renderAsync } from '@react-email/components'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AdminJobPaidEmail } from '@/lib/email/templates/admin-job-paid'
 import { TranslatorInquiryEmail } from '@/lib/email/templates/translator-inquiry'
-import { translateDocument } from '@/lib/ai/translate'
-import { extractWordCount } from '@/lib/pdf/word-counter'
+import { translateDocumentBuffer } from '@/lib/ai/translate'
 import { AiDraftReadyEmail } from '@/lib/email/templates/ai-draft-ready'
 import { Document, Paragraph, TextRun, Packer } from 'docx'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -143,28 +142,14 @@ async function handleTranslationPostPayment(
     if (downloadError || !fileData) throw new Error('Failed to download document')
 
     const buffer = Buffer.from(await fileData.arrayBuffer())
-
-    // Extract text for translation
-    let text = ''
-    const fname = (job.document_name ?? '').toLowerCase()
-    try {
-      if (fname.endsWith('.docx') || fname.endsWith('.doc')) {
-        const mammoth = await import('mammoth')
-        const result = await mammoth.extractRawText({ buffer })
-        text = result.value
-      } else if (fname.endsWith('.pdf')) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>
-        text = (await pdfParse(buffer)).text
-      } else {
-        text = buffer.toString('utf-8')
-      }
-    } catch {
-      text = buffer.toString('utf-8').slice(0, 50000)
-    }
-
     const specialtyName = (job.specialty_multipliers as any)?.name ?? 'General'
-    const translatedText = await translateDocument(text, job.source_lang!, job.target_lang!, specialtyName)
+    const translatedText = await translateDocumentBuffer(
+      buffer,
+      job.document_name ?? 'document.pdf',
+      job.source_lang!,
+      job.target_lang!,
+      specialtyName,
+    )
 
     const doc = new Document({
       sections: [{
