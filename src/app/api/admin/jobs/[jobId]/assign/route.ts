@@ -128,7 +128,7 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   if (jobUpdateError) {
     console.error('[assign] Job update failed:', jobUpdateError)
-    return NextResponse.json({ error: 'Job update failed — migrations may be pending. Run migrations 0019–0021 in Supabase.' }, { status: 500 })
+    return NextResponse.json({ error: `Job update failed: ${jobUpdateError.message ?? JSON.stringify(jobUpdateError)}` }, { status: 500 })
   }
 
   await service.from('job_status_history').insert({
