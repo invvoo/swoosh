@@ -67,7 +67,8 @@ export default function QuotePage() {
           return
         }
         setQuote(data)
-        if (data.acceptedAt) setAccepted(true)
+        // Treat as accepted if Stripe checkout was created OR if payment was manually recorded
+        if (data.acceptedAt || data.status === 'paid' || data.status === 'ai_translating' || data.status === 'ai_review_pending' || data.status === 'assigned' || data.status === 'in_progress' || data.status === 'delivered' || data.status === 'complete') setAccepted(true)
       })
       .finally(() => setLoading(false))
   }, [token])
@@ -275,6 +276,11 @@ export default function QuotePage() {
 
               <p className="text-xs text-gray-400 text-center mt-4">
                 Secure payment powered by Stripe
+              </p>
+
+              <p className="text-xs text-gray-400 text-center mt-3 border-t border-gray-100 pt-3">
+                <strong className="text-gray-500">Cancellation policy:</strong> Cancellations within
+                48 business hours are subject to the full quoted fee. No refunds within this window.
               </p>
             </>
           )}

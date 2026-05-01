@@ -132,7 +132,7 @@ export default async function JobDetailPage({ params }: Props) {
 
         {/* Manual payment for in-person / phone orders that haven't been paid via Stripe */}
         {['draft', 'quote_sent', 'quote_accepted', 'confirmed'].includes(job.status) && (
-          <ManualPaymentButton jobId={jobId} currentStatus={job.status} />
+          <ManualPaymentButton jobId={jobId} currentStatus={job.status} quoteAmount={displayAmount != null ? Number(displayAmount) : undefined} />
         )}
 
         {/* Final actions: Mark Complete (translation only after delivered) + Not Proceeding */}

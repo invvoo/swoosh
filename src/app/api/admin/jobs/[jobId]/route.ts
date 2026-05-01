@@ -11,8 +11,20 @@ export async function DELETE(_req: NextRequest, { params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabase.from('jobs').delete().eq('id', jobId)
+  const { data: job } = await supabase.from('jobs').select('status').eq('id', jobId).single()
+  if (!job) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Soft-delete: set status to 'cancelled' so it disappears from active list but stays for audit
+  const { error } = await supabase.from('jobs').update({ status: 'cancelled' } as any).eq('id', jobId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await supabase.from('job_status_history').insert({
+    job_id: jobId,
+    old_status: job.status,
+    new_status: 'cancelled',
+    changed_by: user.id,
+    note: 'Marked as not proceeding',
+  })
 
   return NextResponse.json({ ok: true })
 }

@@ -6,6 +6,7 @@ import { triggerPostPaymentActions } from '@/lib/jobs/post-payment'
 const schema = z.object({
   method: z.enum(['cash', 'check', 'zelle', 'venmo', 'wire', 'other']),
   note: z.string().max(500).optional(),
+  amount: z.number().positive().optional(),
 })
 
 interface Props { params: Promise<{ jobId: string }> }
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   const body = await req.json().catch(() => ({}))
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 422 })
-  const { method, note } = parsed.data
+  const { method, note, amount } = parsed.data
 
   const service = createServiceClient()
 
@@ -59,6 +60,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     invoice_issued_at: new Date().toISOString(),
     payment_collected_at: new Date().toISOString(),
     payment_method: `manual:${method}`,
+    // If admin specifies the actual amount received, record it as the adjusted amount
+    ...(amount != null ? { quote_adjusted_amount: amount } : {}),
   } as any).eq('id', jobId)
 
   await service.from('job_status_history').insert({

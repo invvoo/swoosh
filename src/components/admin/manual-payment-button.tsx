@@ -17,15 +17,25 @@ const METHODS = [
 interface Props {
   jobId: string
   currentStatus: string
+  quoteAmount?: number
 }
 
-export function ManualPaymentButton({ jobId, currentStatus }: Props) {
+export function ManualPaymentButton({ jobId, currentStatus, quoteAmount }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [method, setMethod] = useState('cash')
+  const [amount, setAmount] = useState(quoteAmount != null ? String(quoteAmount) : '')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function handleOpen() {
+    setAmount(quoteAmount != null ? String(quoteAmount) : '')
+    setNote('')
+    setMethod('cash')
+    setError(null)
+    setOpen(true)
+  }
 
   async function handleConfirm() {
     setLoading(true)
@@ -33,7 +43,11 @@ export function ManualPaymentButton({ jobId, currentStatus }: Props) {
     const res = await fetch(`/api/admin/jobs/${jobId}/manual-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method, note: note || undefined }),
+      body: JSON.stringify({
+        method,
+        note: note || undefined,
+        amount: amount ? parseFloat(amount) : undefined,
+      }),
     })
     const data = await res.json()
     setLoading(false)
@@ -51,7 +65,7 @@ export function ManualPaymentButton({ jobId, currentStatus }: Props) {
         variant="outline"
         size="sm"
         className="border-green-300 text-green-700 hover:bg-green-50"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
       >
         <DollarSign className="h-3.5 w-3.5 mr-1" />
         Record Manual Payment
@@ -63,7 +77,7 @@ export function ManualPaymentButton({ jobId, currentStatus }: Props) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="font-semibold text-gray-900">Record Manual Payment</h2>
-                <p className="text-xs text-gray-500 mt-0.5">For cash, check, Zelle, or any in-person payment</p>
+                <p className="text-xs text-gray-500 mt-0.5">Cash, check, Zelle, or any in-person payment</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="h-4 w-4" />
@@ -71,6 +85,25 @@ export function ManualPaymentButton({ jobId, currentStatus }: Props) {
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount received ($)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg pl-6 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a1a2e]/20 focus:border-[#1a1a2e]"
+                    placeholder="0.00"
+                  />
+                </div>
+                {quoteAmount != null && (
+                  <p className="text-xs text-gray-400 mt-1">Quote amount: ${quoteAmount.toFixed(2)}</p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Payment method</label>
                 <div className="grid grid-cols-3 gap-2">
