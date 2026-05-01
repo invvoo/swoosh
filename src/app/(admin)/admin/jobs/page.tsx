@@ -34,7 +34,7 @@ function getNextStep(job: any): NextStep | null {
   if (s === 'in_progress' && job.translated_doc_path) return { label: 'Review Submission →', href: `/admin/jobs/${id}/review`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100 font-semibold' }
   if (s === 'assigned' && job.translated_doc_path) return { label: 'Review Submission →', href: `/admin/jobs/${id}/review`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100 font-semibold' }
   if (s === 'confirmed') return { label: 'Assign →', href: `/admin/jobs/${id}/assign`, style: 'text-[#1a1a2e] bg-blue-50 border-blue-200 hover:bg-blue-100 font-semibold' }
-  if (s === 'delivered') return { label: 'Mark Complete →', href: `/admin/jobs/${id}`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100' }
+  if (s === 'delivered' || s === 'complete') return { label: 'View →', href: `/admin/jobs/${id}`, style: 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100' }
   return null
 }
 

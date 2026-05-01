@@ -45,13 +45,13 @@ export async function POST(req: NextRequest, { params }: Props) {
     translated_doc_path: storagePath,
     delivered_at: new Date().toISOString(),
     delivery_token: deliveryToken,
-    status: 'delivered',
+    status: 'complete',
   }).eq('id', jobId)
 
   await service.from('job_status_history').insert({
     job_id: jobId,
     old_status: job.status,
-    new_status: 'delivered',
+    new_status: 'complete',
     changed_by: user.id,
   })
 

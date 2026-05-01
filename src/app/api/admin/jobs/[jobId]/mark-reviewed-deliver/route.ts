@@ -35,7 +35,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
     reviewer_id: user.id,
     delivered_at: now,
     delivery_token: deliveryToken,
-    status: 'delivered',
+    status: 'complete',
   }).eq('id', jobId)
 
   if (updateError) {
@@ -46,7 +46,7 @@ export async function POST(_req: NextRequest, { params }: Props) {
   await service.from('job_status_history').insert({
     job_id: jobId,
     old_status: job.status,
-    new_status: 'delivered',
+    new_status: 'complete',
     changed_by: user.id,
     note: 'Marked reviewed by admin and delivered to client',
   })

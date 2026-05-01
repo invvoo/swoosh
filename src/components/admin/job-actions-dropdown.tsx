@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { MoreVertical, ExternalLink, CheckCircle2, Trash2, Loader2 } from 'lucide-react'
+import { MoreVertical, ExternalLink, Trash2, Loader2 } from 'lucide-react'
 
 interface Props {
   jobId: string
@@ -17,14 +17,12 @@ const FINAL = ['complete', 'cancelled']
 export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/admin/jobs' }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [confirming, setConfirming] = useState<'complete' | 'delete' | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const [loading, setLoading] = useState(false)
   const [dropPos, setDropPos] = useState<{ top: number; right: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
-  const canMarkComplete = jobType === 'translation' ? status === 'delivered' : !FINAL.includes(status)
-
-  const close = useCallback(() => { setOpen(false); setConfirming(null) }, [])
+  const close = useCallback(() => { setOpen(false); setConfirming(false) }, [])
 
   useEffect(() => {
     if (!open) return
@@ -43,23 +41,10 @@ export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/adm
       setDropPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
     }
     setOpen((o) => !o)
-    setConfirming(null)
+    setConfirming(false)
   }
 
   function stopProp(e: React.MouseEvent) { e.preventDefault(); e.stopPropagation() }
-
-  async function markComplete(e: React.MouseEvent) {
-    stopProp(e)
-    setLoading(true)
-    await fetch(`/api/admin/jobs/${jobId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'complete', note: 'Marked complete' }),
-    })
-    setLoading(false)
-    close()
-    router.refresh()
-  }
 
   async function deleteJob(e: React.MouseEvent) {
     stopProp(e)
@@ -76,21 +61,7 @@ export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/adm
       className="w-52 bg-white rounded-lg border border-gray-200 shadow-lg py-1 text-sm"
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {confirming === 'complete' ? (
-        <div className="px-3 py-2 space-y-2">
-          <p className="text-gray-700 text-xs font-medium">Mark this job complete and archive it?</p>
-          <div className="flex gap-2">
-            <button onClick={markComplete} disabled={loading}
-              className="flex-1 flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded px-2 py-1 text-xs font-medium">
-              {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
-            </button>
-            <button onClick={(e) => { stopProp(e); setConfirming(null) }}
-              className="flex-1 text-center border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : confirming === 'delete' ? (
+      {confirming ? (
         <div className="px-3 py-2 space-y-2">
           <p className="text-gray-700 text-xs font-medium">Mark as not proceeding and remove from active list?</p>
           <div className="flex gap-2">
@@ -98,7 +69,7 @@ export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/adm
               className="flex-1 flex items-center justify-center gap-1 bg-red-600 hover:bg-red-700 text-white rounded px-2 py-1 text-xs font-medium">
               {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
             </button>
-            <button onClick={(e) => { stopProp(e); setConfirming(null) }}
+            <button onClick={(e) => { stopProp(e); setConfirming(false) }}
               className="flex-1 text-center border border-gray-200 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
               Cancel
             </button>
@@ -113,13 +84,7 @@ export function JobActionsDropdown({ jobId, status, jobType, afterDelete = '/adm
           {!isFinal && (
             <>
               <div className="border-t border-gray-100 my-1" />
-              {canMarkComplete && (
-                <button onClick={(e) => { stopProp(e); setConfirming('complete') }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-green-50 text-green-700">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Mark Complete
-                </button>
-              )}
-              <button onClick={(e) => { stopProp(e); setConfirming('delete') }}
+              <button onClick={(e) => { stopProp(e); setConfirming(true) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-red-50 text-red-600">
                 <Trash2 className="h-3.5 w-3.5" /> Not Proceeding
               </button>
