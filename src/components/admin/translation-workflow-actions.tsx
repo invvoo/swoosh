@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AiTranslateButton } from '@/components/admin/ai-translate-button'
 import { SendTranslatorInquiryButton } from '@/components/admin/send-translator-inquiry-button'
-import { MarkReviewedDeliverButton } from '@/components/admin/mark-reviewed-deliver-button'
 import { Sparkles, UserPlus, Send, Eye, CheckCircle2, RefreshCw, Upload } from 'lucide-react'
 
 interface Props {
@@ -172,12 +171,10 @@ export function TranslationWorkflowActions({ jobId, status, hasDocument, hasAiDr
     )
   }
 
-  if (status === 'delivered') {
+  if (status === 'complete') {
     return (
-      <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-800">
-          <CheckCircle2 className="h-4 w-4" /> Delivered to client
-        </div>
+      <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-800">
+        <CheckCircle2 className="h-4 w-4" /> Delivered to client
       </div>
     )
   }
