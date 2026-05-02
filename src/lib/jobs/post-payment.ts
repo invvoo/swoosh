@@ -2,9 +2,7 @@ import { render as renderAsync } from '@react-email/components'
 import { getResend, FROM_EMAIL } from '@/lib/email/client'
 import { AdminJobPaidEmail } from '@/lib/email/templates/admin-job-paid'
 import { TranslatorInquiryEmail } from '@/lib/email/templates/translator-inquiry'
-import { translateDocumentBuffer } from '@/lib/ai/translate'
-import { AiDraftReadyEmail } from '@/lib/email/templates/ai-draft-ready'
-import { Document, Paragraph, TextRun, Packer } from 'docx'
+import { inngest } from '@/inngest/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const ADMIN_EMAIL = 'info@latranslation.com'
@@ -133,69 +131,36 @@ async function handleTranslationPostPayment(
     return
   }
 
-  // Trigger AI translation
+  // Queue AI translation via Inngest (runs outside the webhook lifecycle)
   await supabase.from('jobs').update({ status: 'ai_translating', ai_translation_started_at: new Date().toISOString() }).eq('id', jobId)
-  await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'paid', new_status: 'ai_translating' })
+  await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'paid', new_status: 'ai_translating', note: 'AI translation queued' })
 
   try {
-    const { data: fileData, error: downloadError } = await supabase.storage.from('job-documents').download(job.document_path)
-    if (downloadError || !fileData) throw new Error('Failed to download document')
+    await inngest.send({ name: 'translation/run', data: { jobId, triggeredBy: 'payment' } })
+  } catch (e) {
+    console.error('[post-payment] Failed to queue Inngest job:', e)
+  }
 
-    const buffer = Buffer.from(await fileData.arrayBuffer())
-    const specialtyName = (job.specialty_multipliers as any)?.name ?? 'General'
-
-    // Fetch admin-configured AI translation rules
-    const { data: rulesSetting } = await supabase
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'ai_translation_rules')
-      .maybeSingle()
-    const customSystemPrompt = (rulesSetting as any)?.value?.trim() || undefined
-
-    const translatedText = await translateDocumentBuffer(
-      buffer,
-      job.document_name ?? 'document.pdf',
-      job.source_lang!,
-      job.target_lang!,
-      specialtyName,
-      customSystemPrompt,
-    )
-
-    const doc = new Document({
-      sections: [{
-        children: translatedText.split('\n').map((line) => new Paragraph({ children: [new TextRun(line)] })),
-      }],
-    })
-    const docBuffer = await Packer.toBuffer(doc)
-    const aiDraftPath = `documents/ai-draft/${jobId}/ai_draft.docx`
-    await supabase.storage.from('job-documents').upload(aiDraftPath, docBuffer, {
-      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      upsert: true,
-    })
-
-    await supabase.from('jobs').update({ status: 'ai_review_pending', ai_draft_path: aiDraftPath, ai_translation_completed_at: new Date().toISOString() }).eq('id', jobId)
-    await supabase.from('job_status_history').insert({ job_id: jobId, old_status: 'ai_translating', new_status: 'ai_review_pending' })
-
-    // Notify admin
-    const html = await renderAsync(AiDraftReadyEmail({
+  // Notify admin that translation is running (draft-ready email comes from Inngest on completion)
+  try {
+    const html = await renderAsync(AdminJobPaidEmail({
+      jobType: 'translation',
       jobId,
+      invoiceNumber,
       clientName: client?.contact_name ?? 'Client',
-      sourceLang: job.source_lang!,
-      targetLang: job.target_lang!,
-      wordCount: job.word_count ?? 0,
+      amount: Number(job.quote_adjusted_amount ?? job.quote_amount ?? 0),
+      sourceLang: job.source_lang ?? undefined,
+      targetLang: job.target_lang ?? undefined,
+      adminPortalUrl: `${BASE_URL}/admin`,
+      assignUrl: `${BASE_URL}/admin/jobs/${jobId}`,
+      nextStepLabel: 'AI translation is running — you will receive another email when the draft is ready',
     }))
     await getResend().emails.send({
       from: FROM_EMAIL, to: adminNotifyEmail,
-      subject: `AI Draft Ready — Assign Reviewer · ${invoiceNumber}`,
+      subject: `Translation Paid — AI Translation Running · ${invoiceNumber}`,
       html,
     })
-  } catch (aiError) {
-    console.error('[post-payment] AI translation failed:', aiError)
-    await supabase.from('jobs').update({ status: 'ai_failed' }).eq('id', jobId)
-    await supabase.from('job_status_history').insert({
-      job_id: jobId, old_status: 'ai_translating', new_status: 'ai_failed', note: String(aiError),
-    })
-  }
+  } catch (e) { console.error('[post-payment] admin notify failed:', e) }
 }
 
 // ── Interpretation post-payment ─────────────────────────────────────────────
